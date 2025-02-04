@@ -368,7 +368,10 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     if connsvc_obj is not None:
         time.sleep(1)
         connsvc_obj.send_signal(2)
-        time.sleep(0.5)
+        try:
+            connsvc_obj.wait(0.5)
+        except:
+            pass
         connsvc_obj.kill()
 
     if create_config_files.config.attempt_cleanup:
