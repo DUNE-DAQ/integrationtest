@@ -29,6 +29,7 @@ class drunc_config:
     use_fakedataprod: bool = False
     config_db: str = ""
     n_df_apps: int = 1
+    n_dfo_apps: int = 1
     n_data_writers: int = 1
     object_databases: list[str] = field(default_factory=list)
     config_substitutions: list[config_substitution] = field(default_factory=list)

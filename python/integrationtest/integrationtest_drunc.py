@@ -155,6 +155,7 @@ def create_config_files(request, tmp_path_factory):
             tpwriting_enabled=drunc_config.tpg_enabled,
             generate_segment=True,
             n_data_writers=drunc_config.n_data_writers,
+            n_dfoapps=drunc_config.n_dfo_apps,
         )
 
         generate_session(
