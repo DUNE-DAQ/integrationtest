@@ -358,6 +358,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     result.completed_process = subprocess.run(
         [nanorc]
         + nanorc_option_strings
+        + ["-s" + str(create_config_files.config.session)]
         + [str("ssh-standalone")]
         + [str(create_config_files.config_file)]
         + [str(create_config_files.config.session)]
