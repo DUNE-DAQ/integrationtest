@@ -274,7 +274,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
 
         connsvc_log = open(
             run_dir
-            / f"log_{getpass.getuser()}_{create_config_files.config.session}_connectivity-service.log",
+            / f"log_{getpass.getuser()}_{create_config_files.config.session}_connectivity-service.txt",
             "w",
         )
         connsvc_obj = subprocess.Popen(
@@ -361,12 +361,18 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         + [str("ssh-standalone")]
         + [str(create_config_files.config_file)]
         + [str(create_config_files.config.session)]
+        + [str(create_config_files.config.session)]
         + command_list,
         cwd=run_dir,
     )
 
     if connsvc_obj is not None:
+        time.sleep(1)
         connsvc_obj.send_signal(2)
+        try:
+            connsvc_obj.wait(0.5)
+        except:
+            pass
         connsvc_obj.kill()
 
     if create_config_files.config.attempt_cleanup:
