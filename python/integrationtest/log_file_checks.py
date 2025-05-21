@@ -1,6 +1,10 @@
 from glob import glob
 import re
 
+# 21-May-2025, KAB: tweak the print() statement default behavior so that it always flushes the output.
+import functools
+print = functools.partial(print, flush=True)
+
 def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, excluded_substring_list=[], required_substring_list=[], print_required_message_report=False):
     ok=True
     ignored_problem_count=0
