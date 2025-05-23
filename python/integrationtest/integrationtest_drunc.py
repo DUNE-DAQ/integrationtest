@@ -361,7 +361,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         + [str("ssh-standalone")]
         + [str(create_config_files.config_file)]
         + [str(create_config_files.config.session)]
-        + [str(create_config_files.config.session)]
+        + [str(create_config_files.config.session_name if create_config_files.config.session_name else create_config_files.config.session)]
         + command_list,
         cwd=run_dir,
     )
@@ -383,6 +383,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
 
     result.confgen_config = create_config_files.config
     result.session = create_config_files.config.session
+    result.session_name = create_config_files.config.session_name
     result.nanorc_commands = command_list
     result.run_dir = run_dir
     result.config_dir = create_config_files.config_dir
