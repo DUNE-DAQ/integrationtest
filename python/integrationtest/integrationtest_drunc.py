@@ -169,12 +169,12 @@ def create_config_files(request, tmp_path_factory):
         )
 
     consolidate_db(str(temp_config_db), str(config_db))
-
-    drunc_config.connsvc_port = set_connectivity_service_port(
-        oksfile=str(config_db),
-        session_name=drunc_config.session,
-        connsvc_port=drunc_config.connsvc_port, # Default is 0, which causes random port to be selected
-    )
+    if drunc_config.connsvc_port is not None:
+        drunc_config.connsvc_port = set_connectivity_service_port(
+            oksfile=str(config_db),
+            session_name=drunc_config.session,
+            connsvc_port=drunc_config.connsvc_port, # Default is 0, which causes random port to be selected
+        )
 
     dal = conffwk.dal.module("generated", "schema/appmodel/fdmodules.schema.xml")
     db = conffwk.Configuration("oksconflibs:" + str(config_db))
@@ -261,6 +261,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     if (
         not disable_connectivity_service
         and not create_config_files.config.drunc_connsvc
+        and create_config_files.config.connsvc_port is not None
     ):
         # start connsvc
         print(
