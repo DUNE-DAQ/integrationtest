@@ -13,6 +13,10 @@ from integrationtest.data_file_check_utilities import (
     record_ordinal_string_all_tests,
 )
 
+# 21-May-2025, KAB: tweak the print() statement default behavior so that it always flushes the output.
+import functools
+print = functools.partial(print, flush=True)
+
 class DataFile:
     def __init__(self, filename):
         self.h5file=h5py.File(filename, 'r')
