@@ -5,6 +5,10 @@ import re
 from hdf5libs import HDF5RawDataFile
 from integrationtest.data_file_check_utilities import (
     get_TC_type,
+    get_TR_trigger_types,
+    unpack_TR_trigger_types,
+    convert_TR_strings_to_types,
+    convert_TR_type_to_TC_bit,
     get_record_ordinal_strings,
     get_fragment_count_limits,
     get_fragment_size_limits,
@@ -270,3 +274,22 @@ def check_fragment_error_flags(datafile, params):
         error_mask_list.sort()
         print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have no error flags set (after applying bitmasks)")
     return passed
+
+def check_tr_trigger_types(datafile, params):
+    h5_file = HDF5RawDataFile(datafile.name)
+    expected_tc_bits = convert_TR_strings_to_types(params["expected_trigger_types"])
+    extracted_tr_types = get_TR_trigger_types(h5_file)
+    unpacked_tr_types = unpack_TR_trigger_types(extracted_tr_types)
+    unpacked_tc_bits = convert_TR_type_to_TC_bit(unpacked_tr_types)
+    print("TR TYPES CHECK!")
+    print("params:", params)
+    print("expected types as string:", params["expected_trigger_types"])
+    print("expected types as bits:", expected_tc_bits)
+    print("extracted tr types:", extracted_tr_types)
+    print("unpacked tr types:", unpacked_tr_types)
+    print("unpacked tc bits:", unpacked_tc_bits)
+
+    assert expected_tc_bits == unpacked_tc_bits, f"Trigger bits do not match: {expected_tc_bits} != {unpacked_tc_bits}"
+
+    return True
+

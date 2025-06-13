@@ -2,6 +2,7 @@ from hdf5libs import HDF5RawDataFile
 from daqdataformats import FragmentErrorBits
 import daqdataformats
 import trgdataformats
+import math
 from num2words import num2words
 
 def get_TC_type(h5_file, record_id):
@@ -13,6 +14,53 @@ def get_TC_type(h5_file, record_id):
                 tc = trgdataformats.TriggerCandidate(frag.get_data())
                 return trgdataformats.trigger_candidate_type_to_string(tc.data.type)
     return "kUnknown"
+
+def get_TR_trigger_types(h5_file):
+    ids = h5_file.get_all_trigger_record_ids()
+    unique_trigger_types = set()
+    for iid in ids:
+        tr = h5_file.get_trigger_record(iid)
+        tr_header = tr.get_header_data()
+        trigger_type = tr_header.trigger_type
+        unique_trigger_types.add(trigger_type)
+    return unique_trigger_types
+
+def decompose_to_powers_of_two(n):
+    result = []
+    power = 0
+    while n > 0:
+        if n & 1:
+            result.append(2 ** power)
+        n >>= 1
+        power += 1
+    return result[::-1]  # Optional: reverse to get from largest to smallest
+
+def power_of_two_exponent(x):
+    if x <= 0 or (x & (x - 1)) != 0:
+        raise ValueError(f"{x} is not a power of two.")
+    return int(math.log2(x))
+
+def unpack_TR_trigger_types(tr_types):
+    final_types = set()
+    for tr_type in tr_types:
+        all_types = decompose_to_powers_of_two(tr_type)
+        for each_type in all_types:
+            final_types.add(each_type)
+    return final_types
+
+def convert_TR_strings_to_types(tr_type_strings):
+    tr_ints = set()
+    for a_string in tr_type_strings:
+        a_int = int(trgdataformats.string_to_trigger_candidate_type(a_string))
+        tr_ints.add(a_int)
+    return tr_ints
+
+def convert_TR_type_to_TC_bit(tr_types):
+    tc_types = set()
+    for tr_type in tr_types:
+        tc_type = power_of_two_exponent(tr_type)
+        tc_types.add(tc_type)
+    return tc_types
 
 def get_record_ordinal_strings(record_id, full_record_list):
     ordinal_strings = []
