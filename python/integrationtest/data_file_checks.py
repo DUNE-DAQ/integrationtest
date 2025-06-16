@@ -10,6 +10,11 @@ from integrationtest.data_file_check_utilities import (
     get_fragment_size_limits,
     get_fragment_error_bitmask,
     get_set_error_bit_names,
+    get_TR_trigger_types,
+    unpack_TR_trigger_types,
+    convert_TR_strings_to_types,
+    convert_TR_type_to_TC_bit,
+    check_multi_TR_type,
     record_ordinal_string_all_tests,
 )
 
@@ -270,3 +275,56 @@ def check_fragment_error_flags(datafile, params):
         error_mask_list.sort()
         print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have no error flags set (after applying bitmasks)")
     return passed
+
+def check_tr_trigger_types(datafile, expected_tr_types_list):
+    """
+    Test that the datafile contains the expected TC types (and only those).
+    Expected Behavior:
+        Confirms whether the expected TC types (provided) are identical to
+        those extracted from the data file.
+    Parameters:
+        datafile: name of the raw HDF5 datafile
+        expected_tr_types_list: list of strings representing trgdataformats TC types
+    Returns:
+        bool: True if TC types match, False otherwise
+    """
+    h5_file = HDF5RawDataFile(datafile.name)
+    expected_tc_bits = convert_TR_strings_to_types(expected_tr_types_list)
+    extracted_tr_types = get_TR_trigger_types(h5_file)
+    unpacked_tr_types = unpack_TR_trigger_types(extracted_tr_types)
+    unpacked_tc_bits = convert_TR_type_to_TC_bit(unpacked_tr_types)
+    #print("TR TYPES CHECK!")
+    #print("expected types as string:", expected_tr_types_list)
+    #print("expected types as bits:", expected_tc_bits)
+    #print("extracted tr types:", extracted_tr_types)
+    #print("unpacked tr types:", unpacked_tr_types)
+    #print("unpacked tc bits:", unpacked_tc_bits)
+
+    if expected_tc_bits != unpacked_tc_bits:
+        print(f"Trigger bits do not match: expected {expected_tc_bits} != extracted {unpacked_tc_bits}")
+        return False
+
+    return True
+
+def check_tr_type_multiplicity(datafile, multi_required):
+    """
+    Test whether the datafile contains a TR trigger with multiplicity (i.e., merged TC types).
+    Parameters:
+        datafile: name of the raw HDF5 datafile
+        multi_required: boolean indicating whether multiplicity is expected
+    Returns:
+        bool: True if multiplicity matches expectation, False otherwise
+    """
+    h5_file = HDF5RawDataFile(datafile.name)
+    extracted_tr_types = get_TR_trigger_types(h5_file)
+    is_multi = check_multi_TR_type(extracted_tr_types)
+    #print("TR TYPES MULTI CHECK!")
+    #print("is multi expected:", multi_required)
+    #print("is multi extracted:", is_multi)
+
+    if multi_required != is_multi:
+        print(f"Trigger types multiplicity mismatch: expected {multi_required}, got {is_multi}")
+        return False
+
+    return True
+
