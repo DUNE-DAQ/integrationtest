@@ -2,7 +2,6 @@ from hdf5libs import HDF5RawDataFile
 from daqdataformats import FragmentErrorBits
 import daqdataformats
 import trgdataformats
-import math
 from num2words import num2words
 
 def get_TC_type(h5_file, record_id):
@@ -16,6 +15,15 @@ def get_TC_type(h5_file, record_id):
     return "kUnknown"
 
 def get_TR_trigger_types(h5_file):
+    """
+    Extracts all unique TR trigger types from a given HDF5 raw data file.
+
+    Parameters:
+        h5_file: An instance of HDF5RawDataFile.
+
+    Returns:
+        A set of integers representing the unique trigger types found in the file.
+    """
     ids = h5_file.get_all_trigger_record_ids()
     unique_trigger_types = set()
     for iid in ids:
@@ -26,6 +34,18 @@ def get_TR_trigger_types(h5_file):
     return unique_trigger_types
 
 def decompose_to_powers_of_two(n):
+    """
+    Decomposes an integer into its constituent powers of two.
+
+    Example:
+        10 -> [8, 2]
+
+    Parameters:
+        n: Integer to decompose.
+
+    Returns:
+        A list of powers of two that sum up to the original number.
+    """
     result = []
     power = 0
     while n > 0:
@@ -33,22 +53,56 @@ def decompose_to_powers_of_two(n):
             result.append(2 ** power)
         n >>= 1
         power += 1
-    return result[::-1]  # Optional: reverse to get from largest to smallest
+    return result[::-1]  # reverse to get from largest to smallest
 
 def power_of_two_exponent(x):
+    """
+    Returns the exponent corresponding to the given power of two.
+
+    Example:
+        8 -> 3 (since 2**3 = 8)
+
+    Raises:
+        ValueError if x is not a power of two.
+    """
     if x <= 0 or (x & (x - 1)) != 0:
         raise ValueError(f"{x} is not a power of two.")
-    return int(math.log2(x))
+    return x.bit_length() - 1
+
+def needs_decomposition(n):
+    """
+    Determines whether a number is a combination of multiple powers of two.
+
+    Returns:
+        True if n is NOT a power of two (i.e., needs decomposition).
+    """
+    return n & (n - 1) != 0  # True if NOT a power of two
 
 def unpack_TR_trigger_types(tr_types):
+    """
+    Unpacks a set of TR trigger types into their base powers-of-two components.
+
+    Parameters:
+        tr_types: A set of integers.
+
+    Returns:
+        A set of individual trigger type values (powers of two).
+    """
     final_types = set()
     for tr_type in tr_types:
-        all_types = decompose_to_powers_of_two(tr_type)
-        for each_type in all_types:
-            final_types.add(each_type)
+        final_types.update(decompose_to_powers_of_two(tr_type))
     return final_types
 
 def convert_TR_strings_to_types(tr_type_strings):
+    """
+    Converts a list of TR trigger type strings into their corresponding integer representations.
+
+    Parameters:
+        tr_type_strings: List of string names (e.g., from config or UI)
+
+    Returns:
+        A set of integers representing those trigger types.
+    """
     tr_ints = set()
     for a_string in tr_type_strings:
         a_int = int(trgdataformats.string_to_trigger_candidate_type(a_string))
@@ -56,11 +110,35 @@ def convert_TR_strings_to_types(tr_type_strings):
     return tr_ints
 
 def convert_TR_type_to_TC_bit(tr_types):
+    """
+    Converts TR trigger type integers (assumed to be powers of two) into TC bit indices.
+
+    Example:
+        [2, 4, 8] -> [1, 2, 3] (i.e., log2 of each)
+
+    Parameters:
+        tr_types: A set of integers (powers of two)
+
+    Returns:
+        A set of integers representing TC type bits (0-based index).
+    """
     tc_types = set()
     for tr_type in tr_types:
         tc_type = power_of_two_exponent(tr_type)
         tc_types.add(tc_type)
     return tc_types
+
+def check_multi_TR_type(tr_types):
+    """
+    Checks whether any TR type in the input set is composed of multiple TC types (i.e., not a power of two).
+
+    Parameters:
+        tr_types: A set of integer TR trigger types
+
+    Returns:
+        True if any of the trigger types is a bitwise combination (i.e., multiplicity exists).
+    """
+    return any(needs_decomposition(tr_type) for tr_type in tr_types)
 
 def get_record_ordinal_strings(record_id, full_record_list):
     ordinal_strings = []
