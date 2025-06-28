@@ -176,6 +176,8 @@ def get_set_error_bit_names(error_bits):
         current_bit = current_bit + 1
     return names
         
+def sid_key(sid):
+    return (sid.subsystem, sid.id)
 
 def record_ordinal_string_all_tests():
     record_ordinal_string_test01()

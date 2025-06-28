@@ -10,6 +10,7 @@ from integrationtest.data_file_check_utilities import (
     get_fragment_size_limits,
     get_fragment_error_bitmask,
     get_set_error_bit_names,
+    sid_key,
     record_ordinal_string_all_tests,
 )
 
@@ -270,3 +271,26 @@ def check_fragment_error_flags(datafile, params):
         error_mask_list.sort()
         print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have no error flags set (after applying bitmasks)")
     return passed
+
+def check_n_unique_sids(datafile, expected_sids_tp, expected_sids_ta, expected_sids_tc):
+    passed=True
+    h5_file = HDF5RawDataFile(datafile.name)
+    records = h5_file.get_all_record_ids()
+    all_sids_tps = set()
+    all_sids_tas = set()
+    all_sids_tcs = set()
+    for rec in records:
+        sids_tps = h5_file.get_source_ids_for_fragment_type(rec, 'Trigger_Primitive')
+        all_sids_tps.update( sid_key(sid) for sid in sids_tps )
+        sids_tas = h5_file.get_source_ids_for_fragment_type(rec, 'Trigger_Activity')
+        all_sids_tas.update( sid_key(sid) for sid in sids_tas )
+        sids_tcs = h5_file.get_source_ids_for_fragment_type(rec, 'Trigger_Candidate')
+        all_sids_tcs.update( sid_key(sid) for sid in sids_tcs )
+    try:
+        assert len(all_sids_tps) == expected_sids_tp
+        assert len(all_sids_tas) == expected_sids_ta
+        assert len(all_sids_tcs) == expected_sids_tc
+        return True
+    except AssertionError:
+        return False
+
