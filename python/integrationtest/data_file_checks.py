@@ -273,6 +273,19 @@ def check_fragment_error_flags(datafile, params):
     return passed
 
 def check_n_unique_sids(datafile, expected_sids_tp, expected_sids_ta, expected_sids_tc):
+    """
+    Checks that the number of unique Source IDs in the HDF5 data file matches expectations
+    for each trigger object type: Trigger Primitive, Trigger Activity, and Trigger Candidate.
+
+    Parameters:
+        datafile: A pathlib.Path or similar object pointing to the raw HDF5 file.
+        expected_sids_tp (int): Expected number of unique Source IDs for Trigger Primitives.
+        expected_sids_ta (int): Expected number of unique Source IDs for Trigger Activities.
+        expected_sids_tc (int): Expected number of unique Source IDs for Trigger Candidates.
+
+    Returns:
+        bool: True if all expected Source ID counts match, False otherwise.
+    """
     passed=True
     h5_file = HDF5RawDataFile(datafile.name)
     records = h5_file.get_all_record_ids()
