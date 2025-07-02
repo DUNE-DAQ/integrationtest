@@ -16,7 +16,8 @@ from integrationtest.data_file_check_utilities import (
     convert_TR_type_to_TC_bit,
     check_multi_TR_type,
     record_ordinal_string_all_tests,
-)
+    trigger_functions_checks
+    )
 
 # 21-May-2025, KAB: tweak the print() statement default behavior so that it always flushes the output.
 import functools
@@ -328,3 +329,5 @@ def check_tr_type_multiplicity(datafile, multi_required):
 
     return True
 
+def trigger_sanity_checks():
+    trigger_functions_checks()
