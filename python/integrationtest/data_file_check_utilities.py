@@ -303,7 +303,9 @@ def trigger_functions_checks():
         ("convert_TR_type_to_TC_bit_all_tests", convert_TR_type_to_TC_bit_all_tests),
         ("check_multi_TR_type_all_tests", check_multi_TR_type_all_tests),
     ]
-    
+
+    all_ok = True
+
     for test_name, test_func in tests:
         try:
             test_func()
@@ -313,12 +315,16 @@ def trigger_functions_checks():
             print()  # blank line
             print("\N{POLICE CARS REVOLVING LIGHT}--------------------------------------------")
             print()  # blank line
+            all_ok = False
         except Exception as e:
             print(f"\N{POLICE CARS REVOLVING LIGHT} ERROR running {test_name}:")
             print(f"  {type(e).__name__}: {e}")
             print()
             print("\N{POLICE CARS REVOLVING LIGHT}--------------------------------------------")
             print()
+            all_ok = False
+
+    return all_ok
 
 def get_TR_trigger_types_all_tests():
     # Mock the h5_file and its methods
@@ -374,10 +380,6 @@ def needs_decomposition_all_tests():
     assert needs_decomposition(0) is False
 
 def unpack_TR_trigger_types_all_tests():
-    # Let's assume decompose_to_powers_of_two works like this:
-    # decompose_to_powers_of_two(5) -> {1,4} (because 5 = 4 + 1)
-    # decompose_to_powers_of_two(8) -> {8} (already a power of two)
-    
     # Case 1: Single composite number
     input_set = {5}  # 5 = 4 + 1
     expected = {1, 4}
@@ -431,8 +433,7 @@ def convert_TR_type_to_TC_bit_all_tests():
     # Empty input returns empty set
     assert convert_TR_type_to_TC_bit(set()) == set()
 
-    # Non-power-of-two values (assuming power_of_two_exponent handles or errors)
-    # If your power_of_two_exponent raises on invalid input, this test can check for that.
+    # Non-power-of-two values
     try:
         convert_TR_type_to_TC_bit({3})
     except Exception:

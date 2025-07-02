@@ -330,4 +330,8 @@ def check_tr_type_multiplicity(datafile, multi_required):
     return True
 
 def trigger_sanity_checks():
-    trigger_functions_checks()
+    all_ok = trigger_functions_checks()
+    if all_ok:
+        print(f"\N{WHITE HEAVY CHECK MARK} All trigger sanity checks passed successfully.")
+    else:
+        print(f"\N{POLICE CARS REVOLVING LIGHT} Some trigger sanity checks FAILED. Please review the errors above.")
