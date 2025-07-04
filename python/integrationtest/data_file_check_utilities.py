@@ -1,8 +1,11 @@
-from hdf5libs import HDF5RawDataFile
-from daqdataformats import FragmentErrorBits
+import traceback
+from num2words import num2words
+from unittest.mock import MagicMock
+
 import daqdataformats
 import trgdataformats
-from num2words import num2words
+from daqdataformats import FragmentErrorBits
+from hdf5libs import HDF5RawDataFile
 
 def get_TC_type(h5_file, record_id):
     src_ids = h5_file.get_source_ids_for_fragment_type(record_id, 'Trigger_Candidate')
@@ -190,6 +193,281 @@ def sid_key(sid):
         tuple: A tuple of (subsystem, id) uniquely identifying the Source ID.
     """
     return (sid.subsystem, sid.id)
+
+def get_TR_trigger_types(h5_file):
+    """
+    Extracts all unique TR trigger types from a given HDF5 raw data file.
+    Parameters:
+        h5_file: An instance of HDF5RawDataFile.
+    Returns:
+        A set of integers representing the unique trigger types found in the file.
+    """
+    ids = h5_file.get_all_trigger_record_ids()
+    unique_trigger_types = set()
+    for iid in ids:
+        tr = h5_file.get_trigger_record(iid)
+        tr_header = tr.get_header_data()
+        trigger_type = tr_header.trigger_type
+        unique_trigger_types.add(trigger_type)
+    return unique_trigger_types
+
+def decompose_to_powers_of_two(n):
+    """
+    Decomposes an integer into its constituent powers of two.
+    Example:
+        10 -> [8, 2]
+    Parameters:
+        n: Integer to decompose.
+    Returns:
+        A list of powers of two that sum up to the original number.
+    """
+    result = []
+    power = 0
+    while n > 0:
+        if n & 1:
+            result.append(2 ** power)
+        n >>= 1
+        power += 1
+    return result[::-1]  # reverse to get from largest to smallest
+
+def power_of_two_exponent(x):
+    """
+    Returns the exponent corresponding to the given power of two.
+    Example:
+        8 -> 3 (since 2**3 = 8)
+    Raises:
+        ValueError if x is not a power of two.
+    """
+    if x <= 0 or (x & (x - 1)) != 0:
+        raise ValueError(f"{x} is not a power of two.")
+    return x.bit_length() - 1
+
+def needs_decomposition(n):
+    """
+    Determines whether a number is a combination of multiple powers of two.
+    Returns:
+        True if n is NOT a power of two (i.e., needs decomposition).
+    """
+    return n & (n - 1) != 0  # True if NOT a power of two
+
+def unpack_TR_trigger_types(tr_types):
+    """
+    Unpacks a set of TR trigger types into their base powers-of-two components.
+    Parameters:
+        tr_types: A set of integers.
+    Returns:
+        A set of individual trigger type values (powers of two).
+    """
+    final_types = set()
+    for tr_type in tr_types:
+        final_types.update(decompose_to_powers_of_two(tr_type))
+    return final_types
+
+def convert_TR_strings_to_types(tr_type_strings):
+    """
+    Converts a list of TR trigger type strings into their corresponding integer representations.
+    Parameters:
+        tr_type_strings: List of string names (e.g., from config or UI)
+    Returns:
+        A set of integers representing those trigger types.
+    """
+    tr_ints = set()
+    for a_string in tr_type_strings:
+        a_int = int(trgdataformats.string_to_trigger_candidate_type(a_string))
+        tr_ints.add(a_int)
+    return tr_ints
+
+def convert_TR_type_to_TC_bit(tr_types):
+    """
+    Converts TR trigger type integers (assumed to be powers of two) into TC bit indices.
+    Example:
+        [2, 4, 8] -> [1, 2, 3] (i.e., log2 of each)
+    Parameters:
+        tr_types: A set of integers (powers of two)
+    Returns:
+        A set of integers representing TC type bits (0-based index).
+    """
+    tc_types = set()
+    for tr_type in tr_types:
+        tc_type = power_of_two_exponent(tr_type)
+        tc_types.add(tc_type)
+    return tc_types
+
+def check_multi_TR_type(tr_types):
+    """
+    Checks whether any TR type in the input set is composed of multiple TC types (i.e., not a power of two).
+    Parameters:
+        tr_types: A set of integer TR trigger types
+    Returns:
+        True if any of the trigger types is a bitwise combination (i.e., multiplicity exists).
+    """
+    return any(needs_decomposition(tr_type) for tr_type in tr_types)
+
+###################################################
+################## Sanity checks ##################
+###################################################
+
+def trigger_functions_checks():
+    tests = [
+        ("get_TR_trigger_types_all_tests", get_TR_trigger_types_all_tests),
+        ("decompose_to_powers_of_two_all_tests", decompose_to_powers_of_two_all_tests),
+        ("power_of_two_exponent_all_tests", power_of_two_exponent_all_tests),
+        ("needs_decomposition_all_tests", needs_decomposition_all_tests),
+        ("unpack_TR_trigger_types_all_tests", unpack_TR_trigger_types_all_tests),
+        ("convert_TR_strings_to_types_all_tests", convert_TR_strings_to_types_all_tests),
+        ("convert_TR_type_to_TC_bit_all_tests", convert_TR_type_to_TC_bit_all_tests),
+        ("check_multi_TR_type_all_tests", check_multi_TR_type_all_tests),
+    ]
+
+    all_ok = True
+
+    for test_name, test_func in tests:
+        try:
+            test_func()
+        except AssertionError:
+            print(f"\N{POLICE CARS REVOLVING LIGHT} UNIT TEST FAILURE in {test_name}:")
+            traceback.print_exc()
+            print()  # blank line
+            print("\N{POLICE CARS REVOLVING LIGHT}--------------------------------------------")
+            print()  # blank line
+            all_ok = False
+        except Exception as e:
+            print(f"\N{POLICE CARS REVOLVING LIGHT} ERROR running {test_name}:")
+            print(f"  {type(e).__name__}: {e}")
+            print()
+            print("\N{POLICE CARS REVOLVING LIGHT}--------------------------------------------")
+            print()
+            all_ok = False
+
+    return all_ok
+
+def get_TR_trigger_types_all_tests():
+    # Mock the h5_file and its methods
+    h5_file = MagicMock()
+    
+    # Return fake record IDs, e.g., [1, 2, 3]
+    h5_file.get_all_trigger_record_ids.return_value = [1, 2, 3]
+    
+    # For each record id, mock get_trigger_record to return a mock record
+    def get_trigger_record_side_effect(iid):
+        record = MagicMock()
+        header = MagicMock()
+        
+        # Map record IDs to trigger_type values for testing
+        trigger_type_map = {
+            1: 1,
+            2: 2,
+            3: 4,
+        }
+        
+        header.trigger_type = trigger_type_map[iid]
+        record.get_header_data.return_value = header
+        return record
+    
+    h5_file.get_trigger_record.side_effect = get_trigger_record_side_effect
+    
+    # Now call your function
+    result = get_TR_trigger_types(h5_file)
+    
+    # The expected set of unique trigger types: {1, 2, 4}
+    assert result == {1, 2, 4}
+
+def decompose_to_powers_of_two_all_tests():
+    assert decompose_to_powers_of_two(0) == []
+    assert decompose_to_powers_of_two(1) == [1]
+    assert decompose_to_powers_of_two(5) == [4, 1]
+    assert decompose_to_powers_of_two(13) == [8, 4, 1]
+
+def power_of_two_exponent_all_tests():
+    assert power_of_two_exponent(1) == 0
+    assert power_of_two_exponent(2) == 1
+    assert power_of_two_exponent(16) == 4
+    try:
+        power_of_two_exponent(3)
+        assert False
+    except ValueError:
+        pass
+
+def needs_decomposition_all_tests():
+    assert needs_decomposition(1) is False
+    assert needs_decomposition(2) is False
+    assert needs_decomposition(3) is True
+    assert needs_decomposition(0) is False
+
+def unpack_TR_trigger_types_all_tests():
+    # Case 1: Single composite number
+    input_set = {5}  # 5 = 4 + 1
+    expected = {1, 4}
+    assert unpack_TR_trigger_types(input_set) == expected
+    
+    # Case 2: Multiple numbers, including powers of two and composite
+    input_set = {3, 8}  # 3 = 2 + 1, 8 = 8
+    expected = {1, 2, 8}
+    assert unpack_TR_trigger_types(input_set) == expected
+    
+    # Case 3: Empty input
+    input_set = set()
+    expected = set()
+
+    assert unpack_TR_trigger_types(input_set) == expected
+    
+    # Case 4: Single power of two input
+    input_set = {16}
+    expected = {16}
+    assert unpack_TR_trigger_types(input_set) == expected
+
+def convert_TR_strings_to_types_all_tests():
+    input_strings = ["kTiming", "kRandom", "kDBSCAN"]
+    expected_output = {
+        int(trgdataformats.TriggerCandidateData.Type.kTiming),
+        int(trgdataformats.TriggerCandidateData.Type.kRandom),
+        int(trgdataformats.TriggerCandidateData.Type.kDBSCAN),
+    }
+    assert convert_TR_strings_to_types(input_strings) == expected_output
+
+    # Duplicate strings in input should not duplicate in output set
+    input_strings = ["kTiming", "kTiming", "kPrescale"]
+    expected_output = {
+        int(trgdataformats.TriggerCandidateData.Type.kTiming),
+        int(trgdataformats.TriggerCandidateData.Type.kPrescale),
+    }
+    assert convert_TR_strings_to_types(input_strings) == expected_output
+
+    # Empty input list returns empty set
+    assert convert_TR_strings_to_types([]) == set()
+
+def convert_TR_type_to_TC_bit_all_tests():
+    # Basic powers of two
+    input_set = {1, 2, 4, 8}
+    expected_output = {0, 1, 2, 3}
+    assert convert_TR_type_to_TC_bit(input_set) == expected_output
+
+    # Single element
+    assert convert_TR_type_to_TC_bit({16}) == {4}
+
+    # Empty input returns empty set
+    assert convert_TR_type_to_TC_bit(set()) == set()
+
+    # Non-power-of-two values
+    try:
+        convert_TR_type_to_TC_bit({3})
+    except Exception:
+        pass  # Expected exception
+
+    # Duplicate elements should not affect result
+    input_set = {8, 8, 8}
+    expected_output = {3}
+    assert convert_TR_type_to_TC_bit(input_set) == expected_output
+
+def check_multi_TR_type_all_tests():
+    assert check_multi_TR_type(set()) is False                # empty set
+    assert check_multi_TR_type({0}) is False                  # single 0
+    assert check_multi_TR_type({1}) is False                  # single power of two
+    assert check_multi_TR_type({3}) is True                   # 3 needs decomposition
+    assert check_multi_TR_type({7}) is True                   # 7 needs decomposition
+    assert check_multi_TR_type({1, 2, 4}) is False            # all single powers of two
+    assert check_multi_TR_type({1, 3}) is True                # 3 triggers True
+    assert check_multi_TR_type({0, 1, 3, 7}) is True          # mixed, but 3 and 7 cause True
 
 def record_ordinal_string_all_tests():
     record_ordinal_string_test01()

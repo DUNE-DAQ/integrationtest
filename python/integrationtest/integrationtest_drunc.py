@@ -20,6 +20,9 @@ from daqconf.consolidate import consolidate_files, consolidate_db, copy_configur
 from daqconf.set_connectivity_service_port import (
     set_connectivity_service_port,
 )
+from daqconf.set_session_env_var import (
+    set_session_env_var,
+)
 from daqconf.get_session_apps import get_segment_apps
 import time
 import random
@@ -175,6 +178,14 @@ def create_config_files(request, tmp_path_factory):
             session_name=drunc_config.session,
             connsvc_port=drunc_config.connsvc_port, # Default is 0, which causes random port to be selected
         )
+
+    # 03-Jul-2025, KAB: added the setting of the TRACE_FILE env var in the OKS Session,
+    # if it is set in the user's environment, and if it is not already set in the configuration.
+    try:
+        trace_file_env_var = os.environ["TRACE_FILE"]
+        set_session_env_var(str(config_db), drunc_config.session, "TRACE_FILE", trace_file_env_var, overwrite=False)
+    except KeyError:
+        pass
 
     dal = conffwk.dal.module("generated", "schema/appmodel/fdmodules.schema.xml")
     db = conffwk.Configuration("oksconflibs:" + str(config_db))
