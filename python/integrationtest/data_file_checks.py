@@ -10,6 +10,7 @@ from integrationtest.data_file_check_utilities import (
     get_fragment_size_limits,
     get_fragment_error_bitmask,
     get_set_error_bit_names,
+    sid_key,
     get_TR_trigger_types,
     unpack_TR_trigger_types,
     convert_TR_strings_to_types,
@@ -277,6 +278,41 @@ def check_fragment_error_flags(datafile, params):
         print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have no error flags set (after applying bitmasks)")
     return passed
 
+def check_n_unique_sids(datafile, expected_sids_tp, expected_sids_ta, expected_sids_tc):
+    """
+    Checks that the number of unique Source IDs in the HDF5 data file matches expectations
+    for each trigger object type: Trigger Primitive, Trigger Activity, and Trigger Candidate.
+
+    Parameters:
+        datafile: A pathlib.Path or similar object pointing to the raw HDF5 file.
+        expected_sids_tp (int): Expected number of unique Source IDs for Trigger Primitives.
+        expected_sids_ta (int): Expected number of unique Source IDs for Trigger Activities.
+        expected_sids_tc (int): Expected number of unique Source IDs for Trigger Candidates.
+
+    Returns:
+        bool: True if all expected Source ID counts match, False otherwise.
+    """
+    passed=True
+    h5_file = HDF5RawDataFile(datafile.name)
+    records = h5_file.get_all_record_ids()
+    all_sids_tps = set()
+    all_sids_tas = set()
+    all_sids_tcs = set()
+    for rec in records:
+        sids_tps = h5_file.get_source_ids_for_fragment_type(rec, 'Trigger_Primitive')
+        all_sids_tps.update( sid_key(sid) for sid in sids_tps )
+        sids_tas = h5_file.get_source_ids_for_fragment_type(rec, 'Trigger_Activity')
+        all_sids_tas.update( sid_key(sid) for sid in sids_tas )
+        sids_tcs = h5_file.get_source_ids_for_fragment_type(rec, 'Trigger_Candidate')
+        all_sids_tcs.update( sid_key(sid) for sid in sids_tcs )
+    try:
+        assert len(all_sids_tps) == expected_sids_tp
+        assert len(all_sids_tas) == expected_sids_ta
+        assert len(all_sids_tcs) == expected_sids_tc
+        return True
+    except AssertionError:
+        return False
+
 def check_tr_trigger_types(datafile, expected_tr_types_list):
     """
     Test that the datafile contains the expected TC types (and only those).
@@ -335,3 +371,4 @@ def trigger_sanity_checks():
         print(f"\n\N{WHITE HEAVY CHECK MARK} All trigger sanity checks passed successfully.")
     else:
         print(f"\n\N{POLICE CARS REVOLVING LIGHT} Some trigger sanity checks FAILED. Please review the errors above.")
+

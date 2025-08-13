@@ -179,6 +179,21 @@ def get_set_error_bit_names(error_bits):
         current_bit = current_bit + 1
     return names
         
+def sid_key(sid):
+    """
+    Generates a unique key tuple for a Source ID object based on its subsystem and id.
+
+    This key is used to uniquely identify Source IDs, allowing them to be stored in sets
+    for easy detection of unique entries.
+
+    Parameters:
+        sid: An object representing a Source ID, expected to have 'subsystem' and 'id' attributes.
+
+    Returns:
+        tuple: A tuple of (subsystem, id) uniquely identifying the Source ID.
+    """
+    return (sid.subsystem, sid.id)
+
 def get_TR_trigger_types(h5_file):
     """
     Extracts all unique TR trigger types from a given HDF5 raw data file.
