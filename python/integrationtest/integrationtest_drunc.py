@@ -158,6 +158,7 @@ def create_config_files(request, tmp_path_factory):
             tpwriting_enabled=drunc_config.tpg_enabled,
             generate_segment=True,
             n_data_writers=drunc_config.n_data_writers,
+            trmon_app=drunc_config.trmon_app_enabled,
         )
 
         generate_session(
@@ -218,6 +219,7 @@ def create_config_files(request, tmp_path_factory):
     # 30-Dec-2024, KAB: build up the list of directories used for writing raw and TPStream data
     rawdata_dirs = []
     tpstream_dirs = []
+    trmon_dirs = []
     segment = sessionobj.segment
     app_list = get_segment_apps(segment)
     for app in app_list:
@@ -238,6 +240,14 @@ def create_config_files(request, tmp_path_factory):
         except:
             # not a TPStreamWriterApplication, so simply continue to the next app
             pass
+        try:
+            trmonapp = db.get_dal(class_name="TRMonReqApplication", uid=app)
+            outdir = trmonapp.data_store_params.directory_path
+            if outdir not in trmon_dirs:
+                trmon_dirs.append(outdir)
+        except:
+            # not a TPStreamWriterApplication, so simply continue to the next app
+            pass
 
     result = CreateConfigResult(
         config=drunc_config,
@@ -246,6 +256,7 @@ def create_config_files(request, tmp_path_factory):
         log_file=logfile,
         data_dirs=rawdata_dirs,
         tpstream_data_dirs=tpstream_dirs,
+        trmon_data_dirs=trmon_dirs
     )
 
     yield result
