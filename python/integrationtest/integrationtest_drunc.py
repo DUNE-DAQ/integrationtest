@@ -6,7 +6,6 @@ import os
 import pkg_resources
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
-from daqconf.generate_hwmap import generate_hwmap
 from integrationtest.data_classes import (
     CreateConfigResult,
     config_substitution,
@@ -14,6 +13,7 @@ from integrationtest.data_classes import (
     relationship_substitution,
     list_element_substitution,
 )
+from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate import (
     generate_readout,
     generate_fakedata,
