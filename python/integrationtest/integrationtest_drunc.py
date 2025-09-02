@@ -198,9 +198,6 @@ def create_config_files(request, tmp_path_factory):
 
     def apply_update(obj, substitution):
         # 27-Aug-2025, KAB: modified this code to support different types of substitutions
-        # --> Implementation Note:  support for bare instances of the config_substitution class has
-        #     been kept for backward-compatibility.  Once we have updated all existing integtests
-        #     to use attribute_substitution, we should come back here and tighten up this code.
         if isinstance(substitution, list_element_substitution):
             replacement_obj = db.get_dal(substitution.replacement_object_class, substitution.replacement_object_id)
             the_list = getattr(obj, substitution.rel_name)
@@ -209,7 +206,7 @@ def create_config_files(request, tmp_path_factory):
         elif isinstance(substitution, relationship_substitution):
             replacement_obj = db.get_dal(substitution.replacement_object_class, substitution.replacement_object_id)
             setattr(obj, substitution.rel_name, replacement_obj)
-        elif isinstance(substitution, attribute_substitution) or isinstance(substitution, config_substitution):
+        elif isinstance(substitution, attribute_substitution):
             for name, value in substitution.updates.items():
                 setattr(obj, name, value)
         else:

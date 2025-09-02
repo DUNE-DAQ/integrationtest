@@ -18,20 +18,14 @@ class DROMap_config:
 # is a configuration object. And, the list_element_substitution class handles cases in
 # which the data item that we want to modify is an entry in a list within the specified
 # configuration object.
-# --> Implementation Note:  the "updates" dictionary that is currently part of the
-#     config_substitution class should really be part of the attribute_substitution class.
-#     However, I've left it in config_substitution for backward-compatibility.  As we have
-#     time, We should change existing integtests to use attribute_substitution.  Once
-#     that is done, we should come back here and tighten up this code.
 @dataclass
 class config_substitution:
     obj_class: str
     obj_id: str = "*"
-    updates: dict = field(default_factory=dict)
 
 @dataclass
 class attribute_substitution(config_substitution):
-    pass
+    updates: dict = field(default_factory=dict)
 
 @dataclass
 class relationship_substitution(config_substitution):
