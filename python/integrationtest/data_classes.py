@@ -11,11 +11,31 @@ class DROMap_config:
     flx_mode: str = "fix_rate"
 
 
+# 27-Aug-2025, KAB: added derived classes to handle various types of configuration
+# substitutions.  The attribute_substitution class handles cases in which we
+# just need to replace simple value(s) for attribute(s) in a config object.
+# The relationship_substitution class handles cases in which the new referenced "value"
+# is a configuration object. And, the list_element_substitution class handles cases in
+# which the data item that we want to modify is an entry in a list within the specified
+# configuration object.
 @dataclass
 class config_substitution:
     obj_class: str
     obj_id: str = "*"
+
+@dataclass
+class attribute_substitution(config_substitution):
     updates: dict = field(default_factory=dict)
+
+@dataclass
+class relationship_substitution(config_substitution):
+    rel_name: str = ""
+    replacement_object_class: str = ""
+    replacement_object_id: str = ""
+
+@dataclass
+class list_element_substitution(relationship_substitution):
+    list_index: int = 0
 
 
 @dataclass
