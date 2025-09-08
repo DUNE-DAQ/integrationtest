@@ -164,6 +164,7 @@ def create_config_files(request, tmp_path_factory):
             tpwriting_enabled=drunc_config.tpg_enabled,
             generate_segment=True,
             n_data_writers=drunc_config.n_data_writers,
+            trmon_app=drunc_config.trmon_app_enabled,
         )
 
         generate_session(
@@ -236,6 +237,7 @@ def create_config_files(request, tmp_path_factory):
     # 30-Dec-2024, KAB: build up the list of directories used for writing raw and TPStream data
     rawdata_dirs = []
     tpstream_dirs = []
+    trmon_dirs = []
     segment = sessionobj.segment
     app_list = get_segment_apps(segment)
     for app in app_list:
@@ -256,6 +258,14 @@ def create_config_files(request, tmp_path_factory):
         except:
             # not a TPStreamWriterApplication, so simply continue to the next app
             pass
+        try:
+            trmonapp = db.get_dal(class_name="TRMonReqApplication", uid=app)
+            outdir = trmonapp.data_store_params.directory_path
+            if outdir not in trmon_dirs:
+                trmon_dirs.append(outdir)
+        except:
+            # not a TPStreamWriterApplication, so simply continue to the next app
+            pass
 
     result = CreateConfigResult(
         config=drunc_config,
@@ -264,6 +274,7 @@ def create_config_files(request, tmp_path_factory):
         log_file=logfile,
         data_dirs=rawdata_dirs,
         tpstream_data_dirs=tpstream_dirs,
+        trmon_data_dirs=trmon_dirs
     )
 
     yield result
@@ -339,6 +350,8 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     rawdata_paths = create_config_files.data_dirs
     tpset_dirs = [run_dir]
     tpset_paths = create_config_files.tpstream_data_dirs
+    trmon_dirs = [run_dir]
+    trmon_paths = create_config_files.trmon_data_dirs
 
     for path in rawdata_paths:
         rawdata_dir = pathlib.Path(path)
@@ -379,6 +392,26 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
             modified_time = file_obj.stat().st_mtime
             if (now - modified_time) > 3600:
                 print(f"Deleting TP data file from earlier test: {str(file_obj)}")
+                file_obj.unlink(True)  # missing is OK
+    for trmon_path in trmon_paths:
+        trmon_dir = pathlib.Path(trmon_path)
+        if trmon_dir not in trmon_dirs:
+            trmon_dirs.append(trmon_dir)
+        # deal with any pre-existing data files
+        temp_suffix = ".temp_saved"
+        now = time.time()
+        for file_obj in trmon_dir.glob(
+            f"{create_config_files.config.op_env}_trmon*.hdf5"
+        ):
+            print(f"Renaming TRMon data file from earlier test: {str(file_obj)}")
+            new_name = str(file_obj) + temp_suffix
+            file_obj.rename(new_name)
+        for file_obj in trmon_dir.glob(
+            f"{create_config_files.config.op_env}_trmon*.hdf5{temp_suffix}"
+        ):
+            modified_time = file_obj.stat().st_mtime
+            if (now - modified_time) > 3600:
+                print(f"Deleting TRMon data file from earlier test: {str(file_obj)}")
                 file_obj.unlink(True)  # missing is OK
 
     print(
@@ -426,6 +459,11 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     for tpset_dir in tpset_dirs:
         result.tpset_files += list(
             tpset_dir.glob(f"{create_config_files.config.op_env}_tp_*.hdf5")
+        )
+    result.trmon_files = []
+    for trmon_dir in trmon_dirs:
+        result.trmon_files += list(
+            trmon_dir.glob(f"{create_config_files.config.op_env}_trmon_*.hdf5")
         )
     result.log_files = list(run_dir.glob("log_*.txt")) + list(run_dir.glob("log_*.log"))
     result.opmon_files = list(run_dir.glob("info_*.json"))

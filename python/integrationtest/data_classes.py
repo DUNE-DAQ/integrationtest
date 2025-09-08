@@ -46,6 +46,7 @@ class drunc_config:
     dro_map_config: DROMap_config = field(default_factory=lambda: DROMap_config(1))
     frame_file: str = "asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e"
     tpg_enabled: bool = False
+    trmon_app_enabled: bool = False
     fake_hsi_enabled: bool = False
     use_fakedataprod: bool = False
     config_db: str = ""
@@ -67,3 +68,4 @@ class CreateConfigResult:
     log_file: str
     data_dirs: list[str]
     tpstream_data_dirs: list[str]
+    trmon_data_dirs: list[str]
