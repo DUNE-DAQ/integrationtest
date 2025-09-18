@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["python"]
+where = ["src"]
 
 [tool.setuptools.package-data]
 integrationtest = ["*"]
