@@ -3,11 +3,11 @@ build-backend = "setuptools.build_meta"
 requires = ["setuptools>=61.0"]
 
 [project]
-description = "A framework for Python-based integration tests of DUNE-DAQ software"
 name = "integrationtest"
+description = "A framework for pytest-based integration tests of DUNE-DAQ software"
+version = "3.5.0"
 readme = "docs/README.md"
 requires-python = ">=3.6"
-version = "3.5.0"
 dependencies = [
     "h5py",
     "num2words",
