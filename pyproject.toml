@@ -1,0 +1,24 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=61.0"]
+
+[project]
+name = "integrationtest"
+description = "A framework for pytest-based integration tests of DUNE-DAQ software"
+version = "3.5.0"
+readme = "docs/README.md"
+requires-python = ">=3.6"
+dependencies = [
+    "h5py",
+    "num2words",
+    "pytest",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+integrationtest = ["*"]
+
+[project.entry-points."pytest11"]
+name_of_plugin = "integrationtest.integrationtest_commandline"
