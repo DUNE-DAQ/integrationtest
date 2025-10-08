@@ -124,6 +124,8 @@ def create_config_files(request, tmp_path_factory):
                         dro_map_config.app_host,
                         dro_map_config.eth_protocol,
                         dro_map_config.flx_mode,
+                        dro_map_config.crate_id_offset,
+                        dro_map_config.slot_id,
                     )
 
             if not file_exists(readout_db):

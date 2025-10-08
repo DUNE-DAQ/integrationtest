@@ -9,6 +9,8 @@ class DROMap_config:
     app_host: str = "localhost"
     eth_protocol: str = "udp"
     flx_mode: str = "fix_rate"
+    crate_id_offset: int = 1
+    slot_id: int = 0
 
 
 # 27-Aug-2025, KAB: added derived classes to handle various types of configuration
