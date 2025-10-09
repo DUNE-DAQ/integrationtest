@@ -44,7 +44,7 @@ class drunc_config:
     session: str = "integtest"
     session_name: str = None
     dro_map_config: DROMap_config = field(default_factory=lambda: DROMap_config(1))
-    frame_file: str = "asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e"
+    frame_file: str = "asset://?checksum=370df564205290d27cab47e44ae4ca47"
     tpg_enabled: bool = False
     trmon_app_enabled: bool = False
     fake_hsi_enabled: bool = False
