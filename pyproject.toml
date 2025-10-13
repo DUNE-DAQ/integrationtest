@@ -31,21 +31,13 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "-v --tb=short --cov=integrationtest --cov=src/integrationtest tests/"  # omit --cov-report=html to avoid suppressing table to stdout
+addopts = "-v --tb=short --cov=integrationtest --cov=src/integrationtest tests/"  # omitted --cov-report=html to avoid suppressing table to stdout
 
 [tool.coverage.run]
 source = ["integrationtest"]
 omit = ["tests/*", "scripts/*"]
 
-
-[tool.ruff]
-line-length = 88
-
-# * For more on the entries in the Ruff linter's "select" list, see https://docs.astral.sh/ruff/rules/
-#
-# * Leaving out "D" below; docstrings aren't needed for simple, self-explanatory functions, etc.
-#
-# * Repo maintainers can add additional ruff checks at their discretion; however, check _removal_ is discouraged. 
+# * See https://docs.astral.sh/ruff/rules/ for details on Ruff's linting options
 [tool.ruff.lint]
 select = [
     "E",    # pycodestyle errors
@@ -54,4 +46,7 @@ select = [
     "UP",   # suggestions for code modernization
     "RUF",  # build in Ruff warnings
     "R",    # refactoring suggestions
+]
+ignore = [
+    "E501", # Don't enforce line lengths within a linting context
 ]
