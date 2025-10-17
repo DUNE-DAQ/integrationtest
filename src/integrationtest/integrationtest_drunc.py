@@ -319,7 +319,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
             "w",
         )
         connsvc_obj = subprocess.Popen(
-            f"gunicorn -b 0.0.0.0:{create_config_files.config.connsvc_port} --workers=1 --worker-class=gthread --threads=2 --timeout 5000000000 --log-level=info connection-service.connection-flask:app".split(),
+            f"gunicorn -b 0.0.0.0:{create_config_files.config.connsvc_port} --workers=1 --worker-class=gthread --threads=2 --timeout 5000000000 --log-level=info connectivityserver.connectionflask:app".split(),
             stdout=connsvc_log,
             stderr=connsvc_log,
             env=connsvc_env,
