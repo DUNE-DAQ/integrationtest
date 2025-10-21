@@ -12,6 +12,7 @@ from integrationtest.data_classes import (
     attribute_substitution,
     relationship_substitution,
     list_element_substitution,
+    list_element_addition,
 )
 from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate import (
@@ -123,6 +124,8 @@ def create_config_files(request, tmp_path_factory):
                         dro_map_config.app_host,
                         dro_map_config.eth_protocol,
                         dro_map_config.flx_mode,
+                        dro_map_config.crate_id_offset,
+                        dro_map_config.slot_id,
                     )
 
             if not file_exists(readout_db):
@@ -199,7 +202,12 @@ def create_config_files(request, tmp_path_factory):
 
     def apply_update(obj, substitution):
         # 27-Aug-2025, KAB: modified this code to support different types of substitutions
-        if isinstance(substitution, list_element_substitution):
+        if isinstance(substitution, list_element_addition):
+            additional_obj = db.get_dal(substitution.additional_object_class, substitution.additional_object_id)
+            the_list = getattr(obj, substitution.rel_name)
+            the_list.append(additional_obj)
+            setattr(obj, substitution.rel_name, the_list)
+        elif isinstance(substitution, list_element_substitution):
             replacement_obj = db.get_dal(substitution.replacement_object_class, substitution.replacement_object_id)
             the_list = getattr(obj, substitution.rel_name)
             the_list[substitution.list_index] = replacement_obj

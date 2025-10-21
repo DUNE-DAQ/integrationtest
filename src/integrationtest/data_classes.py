@@ -9,15 +9,18 @@ class DROMap_config:
     app_host: str = "localhost"
     eth_protocol: str = "udp"
     flx_mode: str = "fix_rate"
+    crate_id_offset: int = 1
+    slot_id: int = 0
 
 
 # 27-Aug-2025, KAB: added derived classes to handle various types of configuration
 # substitutions.  The attribute_substitution class handles cases in which we
 # just need to replace simple value(s) for attribute(s) in a config object.
 # The relationship_substitution class handles cases in which the new referenced "value"
-# is a configuration object. And, the list_element_substitution class handles cases in
+# is a configuration object. The list_element_substitution class handles cases in
 # which the data item that we want to modify is an entry in a list within the specified
-# configuration object.
+# configuration object. And, the list_element_addition class handles cases in which
+# we want to add a data item to a list within the specified configuration object.
 @dataclass
 class config_substitution:
     obj_class: str
@@ -37,6 +40,11 @@ class relationship_substitution(config_substitution):
 class list_element_substitution(relationship_substitution):
     list_index: int = 0
 
+@dataclass
+class list_element_addition(config_substitution):
+    rel_name: str = ""
+    additional_object_class: str = ""
+    additional_object_id: str = ""
 
 @dataclass
 class drunc_config:
