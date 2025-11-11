@@ -4,7 +4,7 @@ import os.path
 import re
 from hdf5libs import HDF5RawDataFile
 from integrationtest.data_file_check_utilities import (
-    get_TC_type,
+    get_trigger_type_string,
     get_record_ordinal_strings,
     get_fragment_count_limits,
     get_fragment_size_limits,
@@ -145,11 +145,11 @@ def check_fragment_count(datafile, params):
     h5_file = HDF5RawDataFile(datafile.name)
     records = h5_file.get_all_record_ids()
     for rec in records:
-        tc_type_string = get_TC_type(h5_file, rec)
+        trigger_type_string = get_trigger_type_string(h5_file, rec)
         rno_strings = get_record_ordinal_strings(rec, records)
-        fragment_count_limits = get_fragment_count_limits(params, tc_type_string, rno_strings)
+        fragment_count_limits = get_fragment_count_limits(params, trigger_type_string, rno_strings)
         if (debug_mask & 0x1) != 0:
-            print(f'DataFileChecks Debug: the fragment count limits are {fragment_count_limits} for TC type {tc_type_string} and record ordinal strings {rno_strings}')
+            print(f'DataFileChecks Debug: the fragment count limits are {fragment_count_limits} for TC type {trigger_type_string} and record ordinal strings {rno_strings}')
         if fragment_count_limits[0] not in min_count_list:
             min_count_list.append(fragment_count_limits[0])
         if fragment_count_limits[1] not in max_count_list:
@@ -201,11 +201,11 @@ def check_fragment_sizes(datafile, params):
     h5_file = HDF5RawDataFile(datafile.name)
     records = h5_file.get_all_record_ids()
     for rec in records:
-        tc_type_string = get_TC_type(h5_file, rec)
+        trigger_type_string = get_trigger_type_string(h5_file, rec)
         rno_strings = get_record_ordinal_strings(rec, records)
-        size_limits = get_fragment_size_limits(params, tc_type_string, rno_strings)
+        size_limits = get_fragment_size_limits(params, trigger_type_string, rno_strings)
         if (debug_mask & 0x4) != 0:
-            print(f'DataFileChecks Debug: the fragment size limits are {size_limits} for TC type {tc_type_string} and record ordinal strings {rno_strings}')
+            print(f'DataFileChecks Debug: the fragment size limits are {size_limits} for TC type {trigger_type_string} and record ordinal strings {rno_strings}')
         if size_limits[0] not in min_size_list:
             min_size_list.append(size_limits[0])
         if size_limits[1] not in max_size_list:
@@ -254,11 +254,11 @@ def check_fragment_error_flags(datafile, params):
     h5_file = HDF5RawDataFile(datafile.name)
     records = h5_file.get_all_record_ids()
     for rec in records:
-        tc_type_string = get_TC_type(h5_file, rec)
+        trigger_type_string = get_trigger_type_string(h5_file, rec)
         rno_strings = get_record_ordinal_strings(rec, records)
-        error_bitmask = get_fragment_error_bitmask(params, tc_type_string, rno_strings)
+        error_bitmask = get_fragment_error_bitmask(params, trigger_type_string, rno_strings)
         if (debug_mask & 0x4) != 0:
-            print(f'DataFileChecks Debug: the fragment error bitmask is {hex(error_bitmask)} for TC type {tc_type_string} and record ordinal strings {rno_strings}')
+            print(f'DataFileChecks Debug: the fragment error bitmask is {hex(error_bitmask)} for TC type {trigger_type_string} and record ordinal strings {rno_strings}')
         if error_bitmask not in error_mask_list:
             error_mask_list.append(error_bitmask)
         if subdet_string == "":

@@ -17,6 +17,15 @@ def get_TC_type(h5_file, record_id):
                 return trgdataformats.trigger_candidate_type_to_string(tc.data.type)
     return "kUnknown"
 
+def get_trigger_type_string(h5_file, record_id):
+    if not h5_file.is_trigger_record_type():
+        return "kUnknown"
+    trig_rec = h5_file.get_trigger_record(record_id)
+    tr_header = trig_rec.get_header_data()
+    trigger_type = tr_header.trigger_type
+    type_enum_value = trgdataformats.TriggerCandidateData.Type(power_of_two_exponent(trigger_type))
+    return trgdataformats.trigger_candidate_type_to_string(type_enum_value)
+
 def get_record_ordinal_strings(record_id, full_record_list):
     ordinal_strings = []
     try:
