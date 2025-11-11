@@ -27,6 +27,9 @@ from daqconf.consolidate import consolidate_files, consolidate_db, copy_configur
 from daqconf.set_connectivity_service_port import (
     set_connectivity_service_port,
 )
+from daqconf.set_rc_controller_port import (
+    set_rc_controller_port,
+)
 from daqconf.set_session_env_var import (
     set_session_env_var,
 )
@@ -188,6 +191,8 @@ def create_config_files(request, tmp_path_factory):
             session_name=drunc_config.session,
             connsvc_port=drunc_config.connsvc_port, # Default is 0, which causes random port to be selected
         )
+    # 05-Nov-2025, KAB, MiR: added the setting of a random RC port
+    set_rc_controller_port(oksfile=str(config_db), session_name=drunc_config.session, rc_port=0)
 
     # 03-Jul-2025, KAB: added the setting of the TRACE_FILE env var in the OKS Session,
     # if it is set in the user's environment, and if it is not already set in the configuration.
