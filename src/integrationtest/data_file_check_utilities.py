@@ -17,6 +17,14 @@ def get_TC_type(h5_file, record_id):
                 return trgdataformats.trigger_candidate_type_to_string(tc.data.type)
     return "kUnknown"
 
+# 17-Nov-2025, KAB: added a function to get the trigger type string (e.g. kTiming)
+# based on the trigger_type field in the TriggerRecordHeader. (I also modified the
+# data_file_checks that make use of the trigger type to use this new function now.)
+# Previously, the TC_type was used.  I kept the function that fetched the TC_type above,
+# but there may no longer be a need for it.  TC_type is not reliable when there is more
+# than one TC in the TriggerCandidate fragment in the TriggerRecord.  Multiple TCs in
+# a single TC fragment can happen when there are multiple triggers configured for a run,
+# and two or more of them occur at the same time.
 def get_trigger_type_string(h5_file, record_id):
     if not h5_file.is_trigger_record_type():
         return "kUnknown"
