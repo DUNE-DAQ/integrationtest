@@ -55,7 +55,11 @@ def sanity_check(datafile):
         print("\N{WHITE HEAVY CHECK MARK} Sanity-check passed")
     return passed
 
-def check_file_attributes(datafile):
+# 17-Nov-2025, KAB: added the 'was_test_run' function argument to allow us
+# to validate the run_was_for_test_purposes Attribute value.  Valid values
+# are the strings "true" and "false", which is easiest given that the values
+# in the HDF5 Attribute are lower-case strings.
+def check_file_attributes(datafile, was_test_run="true"):
     "Checking that the expected Attributes exist within the data file"
     passed=True
     base_filename = os.path.basename(datafile.h5file.filename)
@@ -103,6 +107,12 @@ def check_file_attributes(datafile):
                 passed=False
                 print(f"\N{POLICE CARS REVOLVING LIGHT} The value in Attribute '{expected_attr_name}' ({date_string}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
                 print(f"\N{POLICE CARS REVOLVING LIGHT} Debug information: pattern_low={pattern_low} pattern_high={pattern_high} pattern_exact={pattern_exact} \N{POLICE CARS REVOLVING LIGHT}")
+        elif expected_attr_name == "run_was_for_test_purposes":
+            # value from the Attribute
+            attr_value = datafile.h5file.attrs.get(expected_attr_name)
+            if attr_value != was_test_run:
+                passed=False
+                print(f"\N{POLICE CARS REVOLVING LIGHT} The value in Attribute '{expected_attr_name}' ({attr_value}) does not match the expected value ({was_test_run}) \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
         print(f"\N{WHITE HEAVY CHECK MARK} All Attribute tests passed for file {base_filename}")
     return passed
