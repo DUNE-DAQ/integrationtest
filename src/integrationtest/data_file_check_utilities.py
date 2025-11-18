@@ -7,15 +7,19 @@ import trgdataformats
 from daqdataformats import FragmentErrorBits
 from hdf5libs import HDF5RawDataFile
 
-def get_TC_type(h5_file, record_id):
+def get_TC_types(h5_file, record_id) -> list:
+    type_list = []
     src_ids = h5_file.get_source_ids_for_fragment_type(record_id, 'Trigger_Candidate')
     if len(src_ids) == 1:
         for src_id in src_ids:
             frag = h5_file.get_frag(record_id, src_id);
             if frag.get_size() > 72:
-                tc = trgdataformats.TriggerCandidate(frag.get_data())
-                return trgdataformats.trigger_candidate_type_to_string(tc.data.type)
-    return "kUnknown"
+                tc_byte_offset = 0
+                while tc_byte_offset < frag.get_data_size():
+                    tc = trgdataformats.TriggerCandidate(frag.get_data(tc_byte_offset))
+                    type_list.append(trgdataformats.trigger_candidate_type_to_string(tc.data.type))
+                    tc_byte_offset += tc.sizeof()
+    return type_list
 
 # 17-Nov-2025, KAB: added a function to get the trigger type string (e.g. kTiming)
 # based on the trigger_type field in the TriggerRecordHeader. (I also modified the

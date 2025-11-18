@@ -4,6 +4,7 @@ import os.path
 import re
 from hdf5libs import HDF5RawDataFile
 from integrationtest.data_file_check_utilities import (
+    get_TC_types,
     get_trigger_type_string,
     get_record_ordinal_strings,
     get_fragment_count_limits,
@@ -51,6 +52,18 @@ def sanity_check(datafile):
         if triggerrecordheader_count > 1:
             print(f"\N{POLICE CARS REVOLVING LIGHT} More than one TriggerRecordHeader in record {event} \N{POLICE CARS REVOLVING LIGHT}")
             passed=False
+
+    # check that the trigger_type in the TriggerRecordHeader matches one of the
+    # TriggerCandidates in the TC fragment
+    h5_file = HDF5RawDataFile(datafile.name)
+    records = h5_file.get_all_record_ids()
+    for rec in records:
+        trigger_type_string = get_trigger_type_string(h5_file, rec)
+        TC_type_list = get_TC_types(h5_file, rec)
+        if trigger_type_string not in TC_type_list or len(TC_type_list) > 1:
+            print(f"\N{POLICE CARS REVOLVING LIGHT} The trigger_type in the TriggerRecordHeader ({trigger_type_string}) does not match any of the TriggerCandidates in the record ({TC_type_list}) \N{POLICE CARS REVOLVING LIGHT}")
+            passed=False
+
     if passed:
         print("\N{WHITE HEAVY CHECK MARK} Sanity-check passed")
     return passed
