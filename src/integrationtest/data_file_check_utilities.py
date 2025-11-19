@@ -7,15 +7,36 @@ import trgdataformats
 from daqdataformats import FragmentErrorBits
 from hdf5libs import HDF5RawDataFile
 
-def get_TC_type(h5_file, record_id):
+def get_TC_types(h5_file, record_id) -> list:
+    type_list = []
     src_ids = h5_file.get_source_ids_for_fragment_type(record_id, 'Trigger_Candidate')
     if len(src_ids) == 1:
         for src_id in src_ids:
             frag = h5_file.get_frag(record_id, src_id);
             if frag.get_size() > 72:
-                tc = trgdataformats.TriggerCandidate(frag.get_data())
-                return trgdataformats.trigger_candidate_type_to_string(tc.data.type)
-    return "kUnknown"
+                tc_byte_offset = 0
+                while tc_byte_offset < frag.get_data_size():
+                    tc = trgdataformats.TriggerCandidate(frag.get_data(tc_byte_offset))
+                    type_list.append(trgdataformats.trigger_candidate_type_to_string(tc.data.type))
+                    tc_byte_offset += tc.sizeof()
+    return type_list
+
+# 17-Nov-2025, KAB: added a function to get the trigger type string (e.g. kTiming)
+# based on the trigger_type field in the TriggerRecordHeader. (I also modified the
+# data_file_checks that make use of the trigger type to use this new function now.)
+# Previously, the TC_type was used.  I kept the function that fetched the TC_type above,
+# but there may no longer be a need for it.  TC_type is not reliable when there is more
+# than one TC in the TriggerCandidate fragment in the TriggerRecord.  Multiple TCs in
+# a single TC fragment can happen when there are multiple triggers configured for a run,
+# and two or more of them occur at the same time.
+def get_trigger_type_string(h5_file, record_id):
+    if not h5_file.is_trigger_record_type():
+        return "kUnknown"
+    trig_rec = h5_file.get_trigger_record(record_id)
+    tr_header = trig_rec.get_header_data()
+    trigger_type = tr_header.trigger_type
+    type_enum_value = trgdataformats.TriggerCandidateData.Type(power_of_two_exponent(trigger_type))
+    return trgdataformats.trigger_candidate_type_to_string(type_enum_value)
 
 def get_record_ordinal_strings(record_id, full_record_list):
     ordinal_strings = []
