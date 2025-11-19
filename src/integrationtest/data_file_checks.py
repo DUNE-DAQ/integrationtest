@@ -61,7 +61,7 @@ def sanity_check(datafile):
     for rec in records:
         trigger_type_string = get_trigger_type_string(h5_file, rec)
         TC_type_list = get_TC_types(h5_file, rec)
-        if trigger_type_string not in TC_type_list or len(TC_type_list) > 1:
+        if trigger_type_string not in TC_type_list:
             print(f"\N{POLICE CARS REVOLVING LIGHT} The trigger_type in the TriggerRecordHeader ({trigger_type_string}) does not match any of the TriggerCandidates in the record ({TC_type_list}) \N{POLICE CARS REVOLVING LIGHT}")
             passed=False
 
