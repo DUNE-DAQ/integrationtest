@@ -34,6 +34,7 @@ class DataFile:
 def sanity_check(datafile):
     "Very basic sanity checks on file"
     passed=True
+    base_filename = os.path.basename(datafile.h5file.filename)
     print("") # Clear potential dot from pytest
 
     # execute unit tests for local function(s)
@@ -65,10 +66,16 @@ def sanity_check(datafile):
             passed=False
 
     if passed:
-        print("\N{WHITE HEAVY CHECK MARK} Sanity-check passed")
+        print(f"\N{WHITE HEAVY CHECK MARK} Sanity-check passed for file {base_filename}")
+    else:
+        print(f"\N{POLICE CARS REVOLVING LIGHT} One or more sanity-checks failed for file {base_filename} \N{POLICE CARS REVOLVING LIGHT}")
     return passed
 
-def check_file_attributes(datafile):
+# 17-Nov-2025, KAB: added the 'was_test_run' function argument to allow us
+# to validate the run_was_for_test_purposes Attribute value.  Valid values
+# are the strings "true" and "false", which is easiest given that the values
+# in the HDF5 Attribute are lower-case strings.
+def check_file_attributes(datafile, was_test_run="true"):
     "Checking that the expected Attributes exist within the data file"
     passed=True
     base_filename = os.path.basename(datafile.h5file.filename)
@@ -89,7 +96,7 @@ def check_file_attributes(datafile):
                 filename_value = int(re.sub('run','',re.sub('_','',match_obj.group(0))))
                 if attr_value != filename_value:
                     passed=False
-                    print(f"\N{POLICE CARS REVOLVING LIGHT} The value in Attribute '{expected_attr_name}' ({attr_value}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
+                    print(f"\N{POLICE CARS REVOLVING LIGHT} The value in HDF5 File Attribute '{expected_attr_name}' ({attr_value}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
         elif expected_attr_name == "file_index":
             # value from the Attribute
             attr_value = datafile.h5file.attrs.get(expected_attr_name)
@@ -100,7 +107,7 @@ def check_file_attributes(datafile):
                 filename_value = int(re.sub('_','',match_obj.group(0)))
                 if attr_value != filename_value:
                     passed=False
-                    print(f"\N{POLICE CARS REVOLVING LIGHT} The value in Attribute '{expected_attr_name}' ({attr_value}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
+                    print(f"\N{POLICE CARS REVOLVING LIGHT} The value in HDF5 File Attribute '{expected_attr_name}' ({attr_value}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
         elif expected_attr_name == "creation_timestamp":
             attr_value = datafile.h5file.attrs.get(expected_attr_name)
             date_obj = datetime.datetime.fromtimestamp((int(attr_value)/1000)-1, datetime.timezone.utc)
@@ -114,10 +121,16 @@ def check_file_attributes(datafile):
             pattern_exact = f".*{date_string}.*"
             if not re.match(pattern_exact, base_filename) and not re.match(pattern_low, base_filename) and not re.match(pattern_high, base_filename):
                 passed=False
-                print(f"\N{POLICE CARS REVOLVING LIGHT} The value in Attribute '{expected_attr_name}' ({date_string}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
+                print(f"\N{POLICE CARS REVOLVING LIGHT} The value in HDF5 File Attribute '{expected_attr_name}' ({date_string}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
                 print(f"\N{POLICE CARS REVOLVING LIGHT} Debug information: pattern_low={pattern_low} pattern_high={pattern_high} pattern_exact={pattern_exact} \N{POLICE CARS REVOLVING LIGHT}")
+        elif expected_attr_name == "run_was_for_test_purposes":
+            # value from the Attribute
+            attr_value = datafile.h5file.attrs.get(expected_attr_name)
+            if attr_value != was_test_run:
+                passed=False
+                print(f"\N{POLICE CARS REVOLVING LIGHT} The value in HDF5 File Attribute '{expected_attr_name}' ({attr_value}) does not match the expected value ({was_test_run}) \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"\N{WHITE HEAVY CHECK MARK} All Attribute tests passed for file {base_filename}")
+        print(f"\N{WHITE HEAVY CHECK MARK} All Attribute tests passed")
     return passed
 
 def check_event_count(datafile, expected_value, tolerance):
