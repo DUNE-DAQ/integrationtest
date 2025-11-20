@@ -61,8 +61,14 @@ def sanity_check(datafile):
     for rec in records:
         trigger_type_string = get_trigger_type_string(h5_file, rec)
         TC_type_list = get_TC_types(h5_file, rec)
-        if trigger_type_string not in TC_type_list:
-            print(f"\N{POLICE CARS REVOLVING LIGHT} The trigger_type in the TriggerRecordHeader ({trigger_type_string}) does not match any of the TriggerCandidates in the record ({TC_type_list}) \N{POLICE CARS REVOLVING LIGHT}")
+        # 20-Nov-2025, KAB: added the condition that the trigger record sequence number is zero to the following test.
+        # The reason for this is that when triggers with long readout windows are split into a sequence of
+        # trigger records, typically only the first TR in the sequence has a non-empty TriggerCandidate fragment.
+        # We don't want to complain about an invalid trigger type for the remaining TRs in the sequence when those
+        # TRs are expected to have an empty TC fragment.  Of course, it would be really great if all TRs in the
+        # sequence would have a non-empty TC fragment, but that is a problem for another day.
+        if trigger_type_string not in TC_type_list and rec[1] == 0:
+            print(f"\N{POLICE CARS REVOLVING LIGHT} The trigger_type in the TriggerRecordHeader ({trigger_type_string}) does not match any of the TriggerCandidate types ({TC_type_list}) in record {rec} \N{POLICE CARS REVOLVING LIGHT}")
             passed=False
 
     if passed:
