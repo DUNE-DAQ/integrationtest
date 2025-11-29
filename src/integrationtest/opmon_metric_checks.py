@@ -57,14 +57,14 @@ def check_metric_sample_count(collated_opmon_data: dict, dict_key_list: list, mi
             print(f"\N{POLICE CARS REVOLVING LIGHT} The number of metric samples for key \"{full_key_path}\" ({number_of_samples}) is outside the expected range ({min_count}..unbounded). \N{POLICE CARS REVOLVING LIGHT}")
             return False
         else:
-            print(f"\N{WHITE HEAVY CHECK MARK} The number of metric samples for key \"{full_key_path}\" ({number_of_samples}) is within the expected range ({min_count}..unbounded). \N{WHITE HEAVY CHECK MARK}")
+            print(f"\N{WHITE HEAVY CHECK MARK} The number of metric samples for key \"{full_key_path}\" ({number_of_samples}) is within the expected range ({min_count}..unbounded).")
             return True
     else:
         if number_of_samples < min_count or number_of_samples > max_count:
             print(f"\N{POLICE CARS REVOLVING LIGHT} The number of metric samples for key \"{full_key_path}\" ({number_of_samples}) is outside the expected range ({min_count}..{max_count}). \N{POLICE CARS REVOLVING LIGHT}")
             return False
         else:
-            print(f"\N{WHITE HEAVY CHECK MARK} The number of metric samples for key \"{full_key_path}\" ({number_of_samples}) is within the expected range ({min_count}..{max_count}). \N{WHITE HEAVY CHECK MARK}")
+            print(f"\N{WHITE HEAVY CHECK MARK} The number of metric samples for key \"{full_key_path}\" ({number_of_samples}) is within the expected range ({min_count}..{max_count}).")
             return True
 
 
@@ -117,12 +117,12 @@ def check_metric_value_sum(collated_opmon_data: dict, dict_key_list: list, min_v
             print(f"\N{POLICE CARS REVOLVING LIGHT} The sum of metric values for key \"{full_key_path}\" ({value_sum}) is outside the expected range ({min_value_sum}..unbounded). \N{POLICE CARS REVOLVING LIGHT}")
             return False
         else:
-            print(f"\N{WHITE HEAVY CHECK MARK} The sum of metric values for key \"{full_key_path}\" ({value_sum}) is within the expected range ({min_value_sum}..unbounded). \N{WHITE HEAVY CHECK MARK}")
+            print(f"\N{WHITE HEAVY CHECK MARK} The sum of metric values for key \"{full_key_path}\" ({value_sum}) is within the expected range ({min_value_sum}..unbounded).")
             return True
     else:
         if value_sum < min_value_sum or value_sum > max_value_sum:
             print(f"\N{POLICE CARS REVOLVING LIGHT} The sum of metric values for key \"{full_key_path}\" ({value_sum}) is outside the expected range ({min_value_sum}..{max_value_sum}). \N{POLICE CARS REVOLVING LIGHT}")
             return False
         else:
-            print(f"\N{WHITE HEAVY CHECK MARK} The sum of metric values for key \"{full_key_path}\" ({value_sum}) is within the expected range ({min_value_sum}..{max_value_sum}). \N{WHITE HEAVY CHECK MARK}")
+            print(f"\N{WHITE HEAVY CHECK MARK} The sum of metric values for key \"{full_key_path}\" ({value_sum}) is within the expected range ({min_value_sum}..{max_value_sum}).")
             return True
