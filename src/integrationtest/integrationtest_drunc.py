@@ -479,6 +479,6 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
             trmon_dir.glob(f"{create_config_files.config.op_env}_trmon_*.hdf5")
         )
     result.log_files = list(run_dir.glob("log_*.txt")) + list(run_dir.glob("log_*.log"))
-    result.opmon_files = list(run_dir.glob("info_*.json"))
+    result.opmon_files = list(run_dir.glob(f"info*{result.session_name if result.session_name else result.session}*.json"))
     print("---------- DRUNC Run END ----------", flush=True)
     yield result
