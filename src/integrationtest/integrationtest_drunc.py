@@ -431,6 +431,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         "++++++++++ DRUNC Run BEGIN ++++++++++", flush=True
     )  # Apparently need to flush before subprocess.run
     result = RunResult()
+    time_before = time.time()
     result.completed_process = subprocess.run(
         [nanorc]
         + nanorc_option_strings
@@ -441,6 +442,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         + command_list,
         cwd=run_dir,
     )
+    time_after = time.time()
 
     if connsvc_obj is not None:
         time.sleep(1)
@@ -480,5 +482,8 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         )
     result.log_files = list(run_dir.glob("log_*.txt")) + list(run_dir.glob("log_*.log"))
     result.opmon_files = list(run_dir.glob(f"info*{result.session_name if result.session_name else result.session}*.json"))
+    # 10-Dec-2025, KAB: added the DAQ session overall time so that we can use this
+    # information in fine-tuning the allowed ranges in time-based checking of test results.
+    result.daq_session_overall_time = time_after - time_before
     print("---------- DRUNC Run END ----------", flush=True)
     yield result
