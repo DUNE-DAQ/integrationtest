@@ -77,3 +77,8 @@ class CreateConfigResult:
     data_dirs: list[str]
     tpstream_data_dirs: list[str]
     trmon_data_dirs: list[str]
+
+
+@dataclass
+class ProcessManagerChoice:
+    pm_type: str

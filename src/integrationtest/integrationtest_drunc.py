@@ -8,6 +8,7 @@ import conffwk
 from integrationtest.integrationtest_commandline import file_exists
 from integrationtest.data_classes import (
     CreateConfigResult,
+    ProcessManagerChoice,
     config_substitution,
     attribute_substitution,
     relationship_substitution,
@@ -70,9 +71,22 @@ def pytest_generate_tests(metafunc):
     # and parametrize the fixtures here in pytest_generate_tests,
     # which is run at pytest startup
 
+    # provide default process manager choice
+    if not hasattr(metafunc.module, "process_manager_choices"):
+        print(metafunc.module)
+        metafunc.module.process_manager_choices = { "StandAloneSSH_PM" : {"pm_type": "ssh-standalone"} }
+
     parametrize_fixture_with_items(metafunc, "create_config_files", "confgen_arguments")
+    parametrize_fixture_with_items(metafunc, "process_manager_type", "process_manager_choices")
     parametrize_fixture_with_items(metafunc, "run_nanorc", "nanorc_command_list")
 
+
+@pytest.fixture(scope="module")
+def process_manager_type(request, tmp_path_factory):
+    result = ProcessManagerChoice (
+        pm_type = request.param["pm_type"]
+    )
+    yield result
 
 @pytest.fixture(scope="module")
 def create_config_files(request, tmp_path_factory):
@@ -294,7 +308,7 @@ def create_config_files(request, tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
-def run_nanorc(request, create_config_files, tmp_path_factory):
+def run_nanorc(request, create_config_files, process_manager_type, tmp_path_factory):
     """Run nanorc with the OKS DB files created by `create_config_files`. The
     commands specified by the `nanorc_command_list` variable in the
     test module are executed. If `nanorc_command_list`'s items are
@@ -435,7 +449,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     result.completed_process = subprocess.run(
         [nanorc]
         + nanorc_option_strings
-        + [str("ssh-standalone")]
+        + [str(process_manager_type.pm_type)]
         + [str(create_config_files.config_file)]
         + [str(create_config_files.config.session)]
         + [str(create_config_files.config.session_name if create_config_files.config.session_name else create_config_files.config.session)]
