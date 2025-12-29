@@ -79,6 +79,7 @@ class CreateConfigResult:
     trmon_data_dirs: list[str]
 
 
+# 29-Dec-2025, KAB: added support for different run control process managers
 @dataclass
 class ProcessManagerChoice:
     pm_type: str

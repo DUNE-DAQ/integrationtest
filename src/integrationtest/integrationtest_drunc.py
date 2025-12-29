@@ -71,7 +71,7 @@ def pytest_generate_tests(metafunc):
     # and parametrize the fixtures here in pytest_generate_tests,
     # which is run at pytest startup
 
-    # provide default process manager choice
+    # 29-Dec-2025, KAB: added default process manager choice
     if not hasattr(metafunc.module, "process_manager_choices"):
         metafunc.module.process_manager_choices = { "StandAloneSSH_PM" : {"pm_type": "ssh-standalone"} }
 
@@ -80,6 +80,7 @@ def pytest_generate_tests(metafunc):
     parametrize_fixture_with_items(metafunc, "run_nanorc", "nanorc_command_list")
 
 
+# 29-Dec-2025, KAB: added fixture to handle different process manager choices
 @pytest.fixture(scope="module")
 def process_manager_type(request, tmp_path_factory):
     result = ProcessManagerChoice (
@@ -448,7 +449,7 @@ def run_nanorc(request, create_config_files, process_manager_type, tmp_path_fact
     result.completed_process = subprocess.run(
         [nanorc]
         + nanorc_option_strings
-        + [str(process_manager_type.pm_type)]
+        + [str(process_manager_type.pm_type)]  # 29-Dec-2025, KAB: support for ProcMgr choices
         + [str(create_config_files.config_file)]
         + [str(create_config_files.config.session)]
         + [str(create_config_files.config.session_name if create_config_files.config.session_name else create_config_files.config.session)]
