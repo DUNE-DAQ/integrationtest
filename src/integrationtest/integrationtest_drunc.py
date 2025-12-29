@@ -73,7 +73,6 @@ def pytest_generate_tests(metafunc):
 
     # provide default process manager choice
     if not hasattr(metafunc.module, "process_manager_choices"):
-        print(metafunc.module)
         metafunc.module.process_manager_choices = { "StandAloneSSH_PM" : {"pm_type": "ssh-standalone"} }
 
     parametrize_fixture_with_items(metafunc, "create_config_files", "confgen_arguments")
