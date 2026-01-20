@@ -3,7 +3,6 @@ import subprocess
 import pathlib
 import getpass
 import os
-import pkg_resources
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
 from integrationtest.data_classes import (
