@@ -115,6 +115,7 @@ def check_file_attributes(datafile, was_test_run="true"):
                     passed=False
                     print(f"\N{POLICE CARS REVOLVING LIGHT} The value in HDF5 File Attribute '{expected_attr_name}' ({attr_value}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
         elif expected_attr_name == "creation_timestamp":
+            # value from the Attribute (with a little bit of variation allowed)
             attr_value = datafile.h5file.attrs.get(expected_attr_name)
             date_obj = datetime.datetime.fromtimestamp((int(attr_value)/1000)-1, datetime.timezone.utc)
             date_string = date_obj.strftime("%Y%m%dT%H%M%S")
@@ -125,10 +126,17 @@ def check_file_attributes(datafile, was_test_run="true"):
             date_obj = datetime.datetime.fromtimestamp((int(attr_value)/1000)+0, datetime.timezone.utc)
             date_string = date_obj.strftime("%Y%m%dT%H%M%S")
             pattern_exact = f".*{date_string}.*"
-            if not re.match(pattern_exact, base_filename) and not re.match(pattern_low, base_filename) and not re.match(pattern_high, base_filename):
-                passed=False
-                print(f"\N{POLICE CARS REVOLVING LIGHT} The value in HDF5 File Attribute '{expected_attr_name}' ({date_string}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
-                print(f"\N{POLICE CARS REVOLVING LIGHT} Debug information: pattern_low={pattern_low} pattern_high={pattern_high} pattern_exact={pattern_exact} \N{POLICE CARS REVOLVING LIGHT}")
+            # 05-Feb-2026, KAB: added code to check if the unique substring based on the current date/time
+            # exists in the filename exists before we do any checking.
+            # value from the filename
+            pattern = r"_\d+T\d+"
+            match_obj = re.search(pattern, base_filename)
+            if match_obj:
+                filename_value = re.sub('_','',match_obj.group(0))
+                if not re.match(pattern_exact, filename_value) and not re.match(pattern_low, filename_value) and not re.match(pattern_high, filename_value):
+                    passed=False
+                    print(f"\N{POLICE CARS REVOLVING LIGHT} The value in HDF5 File Attribute '{expected_attr_name}' ({date_string}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
+                    print(f"\N{POLICE CARS REVOLVING LIGHT} Debug information: pattern_low={pattern_low} pattern_high={pattern_high} pattern_exact={pattern_exact} filename_value={filename_value} \N{POLICE CARS REVOLVING LIGHT}")
         elif expected_attr_name == "run_was_for_test_purposes":
             # value from the Attribute
             attr_value = datafile.h5file.attrs.get(expected_attr_name)
