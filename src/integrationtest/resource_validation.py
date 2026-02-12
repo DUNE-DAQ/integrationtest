@@ -91,9 +91,9 @@ class ResourceValidator:
         free_mem = round((mem_obj.available / (1024 * 1024 * 1024)), 2)
         self.debug_string += f"\nDEBUG: Free memory is {free_mem} GB"
         if required_free_memory >= 0:
-            self.debug_string += f", required amount is {required_free_memory}."
+            self.debug_string += f", required amount is {required_free_memory}"
         if recommended_free_memory >= 0:
-            self.debug_string += f", recommended amount is {recommended_free_memory}."
+            self.debug_string += f", recommended amount is {recommended_free_memory}"
         if free_mem < required_free_memory:
             self.this_computer_has_sufficient_resources = False
             self.required_resources_are_present = False
@@ -113,12 +113,12 @@ class ResourceValidator:
     # method to specify the needs for total memory, in units of GB
     def total_memory_needs(self, required_total_memory=-1, recommended_total_memory=-1):
         mem_obj = psutil.virtual_memory()
-        total_mem = round((mem_obj.available / (1024 * 1024 * 1024)), 2)
+        total_mem = round((mem_obj.total / (1024 * 1024 * 1024)), 2)
         self.debug_string += f"\nDEBUG: Total memory is {total_mem} GB"
         if required_total_memory >= 0:
-            self.debug_string += f", required amount is {required_total_memory}."
+            self.debug_string += f", required amount is {required_total_memory}"
         if recommended_total_memory >= 0:
-            self.debug_string += f", recommended amount is {recommended_total_memory}."
+            self.debug_string += f", recommended amount is {recommended_total_memory}"
         if total_mem < required_total_memory:
             self.this_computer_has_sufficient_resources = False
             self.required_resources_are_present = False
@@ -141,9 +141,9 @@ class ResourceValidator:
         self.free_disk_space_gb = disk_space.free / (1024 * 1024 * 1024)
         self.debug_string += f"\nDEBUG: Free disk space on \"{path_of_interest}\" is {self.free_disk_space_gb} GB"
         if required_free_disk_space >= 0:
-            self.debug_string += f", required amount is {required_free_disk_space}."
+            self.debug_string += f", required amount is {required_free_disk_space}"
         if recommended_free_disk_space >= 0:
-            self.debug_string += f", recommended amount is {recommended_free_disk_space}."
+            self.debug_string += f", recommended amount is {recommended_free_disk_space}"
         if self.free_disk_space_gb < required_free_disk_space:
             self.this_computer_has_sufficient_resources = False
             self.required_resources_are_present = False
@@ -163,23 +163,23 @@ class ResourceValidator:
     # method to specify the needs for total disk space, in units of GB
     def total_disk_space_needs(self, path_of_interest, required_total_disk_space=-1, recommended_total_disk_space=-1):
         disk_space = shutil.disk_usage(path_of_interest)
-        self.total_disk_space_gb = disk_space.total / (1024 * 1024 * 1024)
-        self.debug_string += f"\nDEBUG: Total disk space on \"{path_of_interest}\" is {self.total_disk_space_gb} GB"
+        total_disk_space_gb = disk_space.total / (1024 * 1024 * 1024)
+        self.debug_string += f"\nDEBUG: Total disk space on \"{path_of_interest}\" is {total_disk_space_gb} GB"
         if required_total_disk_space >= 0:
-            self.debug_string += f", required amount is {required_total_disk_space}."
+            self.debug_string += f", required amount is {required_total_disk_space}"
         if recommended_total_disk_space >= 0:
-            self.debug_string += f", recommended amount is {recommended_total_disk_space}."
-        if self.total_disk_space_gb < required_total_disk_space:
+            self.debug_string += f", recommended amount is {recommended_total_disk_space}"
+        if total_disk_space_gb < required_total_disk_space:
             self.this_computer_has_sufficient_resources = False
             self.required_resources_are_present = False
             if len(self.required_resource_report_string) == 0:
                 self.required_resource_report_string = self.required_resource_report_header
-            self.required_resource_report_string += f"\n{self.report_indentation} Total disk space on \"{path_of_interest}\" is {self.total_disk_space_gb} GB, required amount is {required_total_disk_space}."
-        if self.total_disk_space_gb < recommended_total_disk_space:
+            self.required_resource_report_string += f"\n{self.report_indentation} Total disk space on \"{path_of_interest}\" is {total_disk_space_gb} GB, required amount is {required_total_disk_space}."
+        if total_disk_space_gb < recommended_total_disk_space:
             self.recommended_resources_are_present = False
             if len(self.recommended_resource_report_string) == 0:
                 self.recommended_resource_report_string = self.recommended_resource_report_header
-            self.recommended_resource_report_string += f"\n{self.report_indentation} Total disk space on \"{path_of_interest}\" is {self.total_disk_space_gb} GB, recommended amount is {recommended_total_disk_space}."
+            self.recommended_resource_report_string += f"\n{self.report_indentation} Total disk space on \"{path_of_interest}\" is {total_disk_space_gb} GB, recommended amount is {recommended_total_disk_space}."
 
     def get_debug_string(self):
         return self.debug_string
