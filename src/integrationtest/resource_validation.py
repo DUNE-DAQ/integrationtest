@@ -44,7 +44,7 @@ class ResourceValidator:
         self.report_indentation = " *"
 
         # set the initial state of the status variables to indicate sufficient resources
-        # users check these directly to confirm if resources are available
+        # users check these attributes directly to confirm if resources are available
         self.this_computer_has_sufficient_resources = True
         self.required_resources_are_present = True
         self.recommended_resources_are_present = True
@@ -54,14 +54,15 @@ class ResourceValidator:
         self.required_resource_report_string = ""
         self.recommended_resource_report_string = ""
 
-        # this is provided to users for whatever extra disk-space-checking they may want to do
+        # this attribute is provided to users for whatever extra disk-space-checking they may want to do.
+        # it gets filled in when free_disk_space_needs() is called.
         self.free_disk_space_gb = -1
 
     # deprecated method, will be removed someday, simply calls newer method
     def require_cpu_count(self, minimum_cpu_count):
         self.cpu_count_needs(required_count=minimum_cpu_count)
 
-    # method to specify the needs for number of CPUs
+    # method to specify the number of CPUs that is needed
     def cpu_count_needs(self, required_count=-1, recommended_count=-1):
         cpu_count = os.cpu_count()
         self.debug_string += f"\nDEBUG: CPU count is {cpu_count}"
@@ -85,7 +86,7 @@ class ResourceValidator:
     def require_free_memory_gb(self, minimum_free_memory):
         self.free_memory_needs(required_free_memory=minimum_free_memory)
 
-    # method to specify the needs for free memory, in units of GB
+    # method to specify the free memory that is needed, in units of GB
     def free_memory_needs(self, required_free_memory=-1, recommended_free_memory=-1):
         mem_obj = psutil.virtual_memory()
         free_mem = round((mem_obj.available / (1024 * 1024 * 1024)), 2)
@@ -110,7 +111,7 @@ class ResourceValidator:
     def require_total_memory_gb(self, minimum_total_memory):
         self.total_memory_needs(required_total_memory=minimum_total_memory)
 
-    # method to specify the needs for total memory, in units of GB
+    # method to specify the total memory that is needed, in units of GB
     def total_memory_needs(self, required_total_memory=-1, recommended_total_memory=-1):
         mem_obj = psutil.virtual_memory()
         total_mem = round((mem_obj.total / (1024 * 1024 * 1024)), 2)
@@ -135,7 +136,7 @@ class ResourceValidator:
     def require_free_disk_space_gb(self, path_of_interest, minimum_free_disk_space):
         self.free_disk_space_needs(path_of_interest, required_free_disk_space=minimum_free_disk_space)
 
-    # method to specify the needs for free disk space, in units of GB
+    # method to specify the free disk space that is needed, in units of GB
     def free_disk_space_needs(self, path_of_interest, required_free_disk_space=-1, recommended_free_disk_space=-1):
         disk_space = shutil.disk_usage(path_of_interest)
         self.free_disk_space_gb = disk_space.free / (1024 * 1024 * 1024)
@@ -160,7 +161,7 @@ class ResourceValidator:
     def require_total_disk_space_gb(self, path_of_interest, minimum_total_disk_space):
         self.total_disk_space_needs(path_of_interest, required_total_disk_space=minimum_total_disk_space)
 
-    # method to specify the needs for total disk space, in units of GB
+    # method to specify the total disk space that is needed, in units of GB
     def total_disk_space_needs(self, path_of_interest, required_total_disk_space=-1, recommended_total_disk_space=-1):
         disk_space = shutil.disk_usage(path_of_interest)
         total_disk_space_gb = disk_space.total / (1024 * 1024 * 1024)
