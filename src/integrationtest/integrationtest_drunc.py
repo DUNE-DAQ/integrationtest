@@ -104,14 +104,22 @@ def check_system_resources(request):
     if not resval.required_resources_are_present:
         resval_report_string = resval.get_required_resources_report()
         print(f"\n\N{LARGE YELLOW CIRCLE} {resval_report_string}")
-        resval_summary_string = resval.get_required_resources_summary()
         if not skip_resource_checks:
-            pytest.skip(f"{resval_summary_string}")
+            # 16-Feb-2026, KAB: discard all of the test items except the
+            # first one so that we only get one "skip" output message.
+            del request.session.items[1:]
+            pytest.skip(f"\n\N{LARGE YELLOW CIRCLE} {resval_report_string}")
     if not resval.recommended_resources_are_present:
         resval_report_string = resval.get_recommended_resources_report()
         print(f"\n*** Note: {resval_report_string}")
 
     yield True
+
+    # 16-Feb-2026, KAB: added a printout for recommended resources after the "yield"
+    # statement so that it gets printed out at the end of the output that the user sees.
+    if not resval.recommended_resources_are_present:
+        resval_report_string = resval.get_recommended_resources_report()
+        print(f"\n*** Note: {resval_report_string}")
 
 @pytest.fixture(scope="module")
 def create_config_files(request, tmp_path_factory, check_system_resources):
