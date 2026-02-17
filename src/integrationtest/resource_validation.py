@@ -15,21 +15,14 @@
 # Here is pseudo-code for using this utility:
 #
 # import integrationtest.resource_validation as resource_validation
-# resval = resource_validation.ResourceValidator()
-# resval.cpu_count_needs(32, 64)
-# resval.free_memory_needs(28)
+# # MUST be named "resource_validator"
+# resource_validator = resource_validation.ResourceValidator()
+# resource_validator.cpu_count_needs(32, 64)
+# resource_validator.free_memory_needs(28)
 # # set other minimum values, if desired
-# resval_debug_string = resval.get_debug_string()
+# resval_debug_string = resource_validator.get_debug_string()
 # print(f"{resval_debug_string}")
-# # then, in one of the pytest "tests"
-# if not resval.required_resources_are_present
-#     resval_full_report = resval.get_required_resources_report()
-#     print(f"{resval_full_report}")
-#     resval_summary_report = resval.get_required_resources_summary()
-#     pytest.skip(f"{resval_summary_report}")
-# if not resval.recommended_resources_are_present
-#     resval_full_report = resval.get_recommended_resources_report()
-#     print(f"{resval_full_report}")
+# # The check_system_resources fixture will check that the system has the required resources
 
 import os
 import psutil
@@ -181,6 +174,52 @@ class ResourceValidator:
             if len(self.recommended_resource_report_string) == 0:
                 self.recommended_resource_report_string = self.recommended_resource_report_header
             self.recommended_resource_report_string += f"\n{self.report_indentation} Total disk space on \"{path_of_interest}\" is {total_disk_space_gb} GB, recommended amount is {recommended_total_disk_space}."
+
+    # method to specify the regular expression which the hostname should match
+    def require_host_match(self, required_host_regex):
+        hostname = os.uname().nodename
+        self.debug_string += f"\nDEBUG: Hostname is \"{hostname}\", required regex is \"{required_host_regex}\""
+        if not re.match(required_host_regex, hostname):
+            self.this_computer_has_sufficient_resources = False
+            self.required_resources_are_present = False
+            if len(self.required_resource_report_string) == 0:
+                self.required_resource_report_string = self.required_resource_report_header
+            self.required_resource_report_string += f"\n{self.report_indentation} Hostname is \"{hostname}\", which does not match the required regex \"{required_host_regex}\"."
+
+    # method to check connectivity to certain hosts
+    def require_host_connectivity(self, required_host_list):
+        # Set up the software environment on each of the 4 computers needed for this test.
+        # This serves two purposes: it verifies that we can ssh to
+        # those computers (so we know that we are running at EHN1, etc.), and it pre-loads
+        # the software release from CVMFS onto all of those computers (so the startup of
+        # DAQ apps such as the ConnectivityServer don't take a long time initially).
+        import subprocess
+        computers_that_are_unreachable = []
+        sw_area_root = os.environ.get("DBT_AREA_ROOT")
+        if sw_area_root is not None:
+            for needed_computer in required_host_list:
+                print("")
+                print(f"Confirming that we can ssh to {needed_computer}...")
+                proc = subprocess.Popen(f"ssh {needed_computer} 'cd {sw_area_root}; . ./env.sh'", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                proc.communicate()
+                retval = proc.returncode
+                if retval != 0:
+                    computers_that_are_unreachable.append(needed_computer)
+        else:
+            self.debug_string += "\nDEBUG: DBT_AREA_ROOT environment variable is not set, so connectivity checks were not performed."
+            self.this_computer_has_sufficient_resources = False
+            self.required_resources_are_present = False
+            if len(self.required_resource_report_string) == 0:
+                self.required_resource_report_string = self.required_resource_report_header
+            self.required_resource_report_string += f"\n{self.report_indentation} Unable to determine the value of the DBT_AREA_ROOT env var."
+
+        if len(computers_that_are_unreachable) > 0:
+            self.this_computer_has_sufficient_resources = False
+            self.required_resources_are_present = False
+            if len(self.required_resource_report_string) == 0:
+                self.required_resource_report_string = self.required_resource_report_header
+            for unreachable_computer in computers_that_are_unreachable:
+                self.required_resource_report_string += f"\n{self.report_indentation} Unable to ssh to {unreachable_computer}."
 
     def get_debug_string(self):
         return self.debug_string
