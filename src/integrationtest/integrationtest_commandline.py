@@ -35,6 +35,13 @@ def pytest_addoption(parser):
         help="Whether to skip the node resource (CPU/Memory) checks for this test",
         required=False
     )
+    parser.addoption(
+        "--process-manager-type",
+        action="store",
+        default="",
+        help="The run control process manager type to use for this test, e.g. ssh-standalone",
+        required=False
+    )
 
 def pytest_configure(config):
     for opt in ("--nanorc-path",):
