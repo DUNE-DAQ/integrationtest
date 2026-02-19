@@ -5,6 +5,7 @@ import getpass
 import os
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
+from integrationtest.resource_validation import ResourceValidator
 from integrationtest.data_classes import (
     CreateConfigResult,
     ProcessManagerChoice,
@@ -89,7 +90,39 @@ def process_manager_type(request, tmp_path_factory):
     yield result
 
 @pytest.fixture(scope="module")
-def create_config_files(request, tmp_path_factory):
+def check_system_resources(request):
+    """Check that the system resources (CPU, Memory) are sufficient for the test
+    The required and recommended resources are taken from the
+    `resource_validator` variable in the global scope of the test
+    module, which should be an instance of ResourceValidator. If the
+    required resources are not present, then the test is skipped. If
+    the recommended resources are not present, then a warning is printed
+    """
+    skip_resource_checks = request.config.getoption("--skip-resource-checks")
+
+    resval = getattr(request.module, "resource_validator", ResourceValidator())
+    if not resval.required_resources_are_present:
+        resval_report_string = resval.get_required_resources_report()
+        print(f"\n\N{LARGE YELLOW CIRCLE} {resval_report_string}")
+        if not skip_resource_checks:
+            # 16-Feb-2026, KAB: discard all of the test items except the
+            # first one so that we only get one "skip" output message.
+            del request.session.items[1:]
+            pytest.skip(f"\n\N{LARGE YELLOW CIRCLE} {resval_report_string}")
+    if not resval.recommended_resources_are_present:
+        resval_report_string = resval.get_recommended_resources_report()
+        print(f"\n*** Note: {resval_report_string}")
+
+    yield True
+
+    # 16-Feb-2026, KAB: added a printout for recommended resources after the "yield"
+    # statement so that it gets printed out at the end of the output that the user sees.
+    if not resval.recommended_resources_are_present:
+        resval_report_string = resval.get_recommended_resources_report()
+        print(f"\n*** Note: {resval_report_string}")
+
+@pytest.fixture(scope="module")
+def create_config_files(request, tmp_path_factory, check_system_resources):
     """Run the confgen to produce the configuration json files
 
     The name of the module to use is taken (indirectly) from the
@@ -101,10 +134,14 @@ def create_config_files(request, tmp_path_factory):
     produced by one pytest module
 
     """
+    dummy_resource_check = check_system_resources
     drunc_config = request.param
 
     disable_connectivity_service = request.config.getoption(
         "--disable-connectivity-service"
+    )
+    skip_resource_checks = request.config.getoption(
+        "--skip-resource-checks"
     )
 
     config_dir = tmp_path_factory.mktemp("config")

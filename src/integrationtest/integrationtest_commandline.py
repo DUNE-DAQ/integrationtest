@@ -28,6 +28,13 @@ def pytest_addoption(parser):
         help="Whether to disable the Connectivity Service for this test",
         required=False
     )
+    parser.addoption(
+        "--skip-resource-checks",
+        action="store_true",
+        default=False,
+        help="Whether to skip the node resource (CPU/Memory) checks for this test",
+        required=False
+    )
 
 def pytest_configure(config):
     for opt in ("--nanorc-path",):
