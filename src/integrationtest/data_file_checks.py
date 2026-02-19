@@ -128,7 +128,6 @@ def check_file_attributes(datafile, was_test_run="true"):
             pattern_exact = f".*{date_string}.*"
             # 05-Feb-2026, KAB: added code to check if the unique substring based on the current date/time
             # exists in the filename exists before we do any checking.
-            # value from the filename
             pattern = r"_\d+T\d+"
             match_obj = re.search(pattern, base_filename)
             if match_obj:
