@@ -7,18 +7,18 @@ def file_exists(s):
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--nanorc-path",
+        "--dunerc-path",
         action="store",
         type=pathlib.Path,
         default=None,
-        help="Path to nanorc. Default is to search in $PATH",
+        help="Path to DUNE run control. Default is to search in $PATH",
         required=False
     )
     parser.addoption(
-        "--nanorc-option",
+        "--dunerc-option",
         action="append",
         nargs="+",
-        help="Repeatable, nanorc arguments without leading dashes (e.g. kerberos)",
+        help="Repeatable, DUNE run control arguments without leading dashes (e.g. kerberos)",
         required=False
     )
     parser.addoption(
@@ -37,7 +37,7 @@ def pytest_addoption(parser):
     )
 
 def pytest_configure(config):
-    for opt in ("--nanorc-path",):
+    for opt in ("--dunerc-path",):
         p=config.getoption(opt)
         if p is not None and not file_exists(p):
             pytest.exit(f"{opt} path {p} is not an existing file")
