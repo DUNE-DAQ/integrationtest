@@ -77,6 +77,8 @@ def pytest_generate_tests(metafunc):
         metafunc.module.process_manager_choices = { "StandAloneSSH_PM" : {"pm_type": "ssh-standalone"} }
 
     # 27-Feb-2026, KAB: support for the nanorc --> dunerc transition
+    # We will be able to remove the following two lines once all integtests
+    # have been converted to use dunerc instead of nanorc.
     if not hasattr(metafunc.module, "dunerc_command_list") and hasattr(metafunc.module, "nanorc_command_list"):
         metafunc.module.dunerc_command_list = metafunc.module.nanorc_command_list
 
@@ -84,6 +86,8 @@ def pytest_generate_tests(metafunc):
     parametrize_fixture_with_items(metafunc, "process_manager_type", "process_manager_choices")
 
     # 27-Feb-2026, KAB: support for the nanorc --> dunerc transition
+    # We will be able to just use "run_dunerc" once all integtests
+    # have been converted to use dunerc instead of nanorc.
     if "run_nanorc" in metafunc.fixturenames:
         parametrize_fixture_with_items(metafunc, "run_nanorc", "dunerc_command_list")
     if "run_dunerc" in metafunc.fixturenames:
@@ -353,6 +357,8 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     yield result
 
 
+# 27-Feb-2026, KAB: support for the nanorc --> dunerc transition
+# Temporary fixture until all integtests have been changed to use "dunerc".
 @pytest.fixture(scope="module")
 def run_nanorc(run_dunerc):
     yield run_dunerc
@@ -555,7 +561,10 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     result.confgen_config = create_config_files.config
     result.session = create_config_files.config.session
     result.session_name = create_config_files.config.session_name
+    # 27-Feb-2026, KAB: the nanorc_commands return value can be removed once
+    # all integtests have been changed to use "dunerc".
     result.nanorc_commands = command_list
+    result.dunerc_commands = command_list
     result.run_dir = run_dir
     result.config_dir = create_config_files.config_dir
     result.data_files = []
