@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import daqdataformats
 import trgdataformats
-from daqdataformats import FragmentErrorBits
+from daqdataformats import FragmentStatusBits
 from hdf5libs import HDF5RawDataFile
 
 def get_TC_types(h5_file, record_id) -> list:
@@ -152,25 +152,25 @@ def get_fragment_size_limits(params, tc_type_string, record_ordinal_strings):
 
     return [min_size, max_size]
 
-def get_fragment_error_bitmask(params, tc_type_string, record_ordinal_strings):
+def get_fragment_status_bitmask(params, tc_type_string, record_ordinal_strings):
     # Set default value (all bits allowed)
-    error_bitmask = 0xFFFFFFFF
+    status_bitmask = 0xFFFFFFFF
 
     # get first-level defaults from any top-level parameters specified by the user
-    if 'error_bitmask' in params.keys():
-        error_bitmask = params['error_bitmask']
+    if 'status_bitmask' in params.keys():
+        status_bitmask = params['status_bitmask']
 
     # check for bitmasks that are specified by TC type
     if 'frag_bitmasks_by_TC_type' in params.keys():
         tc_type_dict = params['frag_bitmasks_by_TC_type']
         if tc_type_string in tc_type_dict.keys():
             bitmask_dict = tc_type_dict[tc_type_string]
-            if 'error_bitmask' in bitmask_dict.keys():
-                error_bitmask = bitmask_dict['error_bitmask']
+            if 'status_bitmask' in bitmask_dict.keys():
+                status_bitmask = bitmask_dict['status_bitmask']
         elif 'default' in tc_type_dict.keys():
             bitmask_dict = tc_type_dict['default']
-            if 'error_bitmask' in bitmask_dict.keys():
-                error_bitmask = bitmask_dict['error_bitmask']
+            if 'status_bitmask' in bitmask_dict.keys():
+                status_bitmask = bitmask_dict['status_bitmask']
 
     # check for bitmasks that are specified by record number
     # (obviously, if both bitmasks-by-TC-type and bitmasks-by-record-ordinal are
@@ -180,23 +180,23 @@ def get_fragment_error_bitmask(params, tc_type_string, record_ordinal_strings):
         record_number_dict = params['frag_bitmasks_by_record_ordinal']
         if rno_string in record_number_dict.keys():
             bitmask_dict = record_number_dict[rno_string]
-            if 'error_bitmask' in bitmask_dict.keys():
-                error_bitmask = bitmask_dict['error_bitmask']
+            if 'status_bitmask' in bitmask_dict.keys():
+                status_bitmask = bitmask_dict['status_bitmask']
         elif 'default' in record_number_dict.keys():
             bitmask_dict = record_number_dict['default']
-            if 'error_bitmask' in bitmask_dict.keys():
-                error_bitmask = bitmask_dict['error_bitmask']
+            if 'status_bitmask' in bitmask_dict.keys():
+                status_bitmask = bitmask_dict['status_bitmask']
 
-    return error_bitmask
+    return status_bitmask
 
-def get_set_error_bit_names(error_bits):
-    error_bits_temp = error_bits
+def get_set_status_bit_names(status_bits):
+    status_bits_temp = status_bits
     names = []
     current_bit = 0
-    while error_bits_temp != 0:
-        if error_bits_temp & 0x1 == 0x1:
-            names.append(FragmentErrorBits(current_bit).name)
-        error_bits_temp = error_bits_temp >> 1
+    while status_bits_temp != 0:
+        if status_bits_temp & 0x1 == 0x1:
+            names.append(FragmentStatusBits(current_bit).name)
+        status_bits_temp = status_bits_temp >> 1
         current_bit = current_bit + 1
     return names
         

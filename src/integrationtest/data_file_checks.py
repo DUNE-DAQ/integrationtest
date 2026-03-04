@@ -9,8 +9,8 @@ from integrationtest.data_file_check_utilities import (
     get_record_ordinal_strings,
     get_fragment_count_limits,
     get_fragment_size_limits,
-    get_fragment_error_bitmask,
-    get_set_error_bit_names,
+    get_fragment_status_bitmask,
+    get_set_status_bit_names,
     sid_key,
     get_TR_trigger_types,
     unpack_TR_trigger_types,
@@ -115,6 +115,7 @@ def check_file_attributes(datafile, was_test_run="true"):
                     passed=False
                     print(f"\N{POLICE CARS REVOLVING LIGHT} The value in HDF5 File Attribute '{expected_attr_name}' ({attr_value}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
         elif expected_attr_name == "creation_timestamp":
+            # value from the Attribute (with a little bit of variation allowed)
             attr_value = datafile.h5file.attrs.get(expected_attr_name)
             date_obj = datetime.datetime.fromtimestamp((int(attr_value)/1000)-1, datetime.timezone.utc)
             date_string = date_obj.strftime("%Y%m%dT%H%M%S")
@@ -125,10 +126,16 @@ def check_file_attributes(datafile, was_test_run="true"):
             date_obj = datetime.datetime.fromtimestamp((int(attr_value)/1000)+0, datetime.timezone.utc)
             date_string = date_obj.strftime("%Y%m%dT%H%M%S")
             pattern_exact = f".*{date_string}.*"
-            if not re.match(pattern_exact, base_filename) and not re.match(pattern_low, base_filename) and not re.match(pattern_high, base_filename):
-                passed=False
-                print(f"\N{POLICE CARS REVOLVING LIGHT} The value in HDF5 File Attribute '{expected_attr_name}' ({date_string}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
-                print(f"\N{POLICE CARS REVOLVING LIGHT} Debug information: pattern_low={pattern_low} pattern_high={pattern_high} pattern_exact={pattern_exact} \N{POLICE CARS REVOLVING LIGHT}")
+            # 05-Feb-2026, KAB: added code to check if the unique substring based on the current date/time
+            # exists in the filename exists before we do any checking.
+            pattern = r"_\d+T\d+"
+            match_obj = re.search(pattern, base_filename)
+            if match_obj:
+                filename_value = re.sub('_','',match_obj.group(0))
+                if not re.match(pattern_exact, filename_value) and not re.match(pattern_low, filename_value) and not re.match(pattern_high, filename_value):
+                    passed=False
+                    print(f"\N{POLICE CARS REVOLVING LIGHT} The value in HDF5 File Attribute '{expected_attr_name}' ({date_string}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
+                    print(f"\N{POLICE CARS REVOLVING LIGHT} Debug information: pattern_low={pattern_low} pattern_high={pattern_high} pattern_exact={pattern_exact} filename_value={filename_value} \N{POLICE CARS REVOLVING LIGHT}")
         elif expected_attr_name == "run_was_for_test_purposes":
             # value from the Attribute
             attr_value = datafile.h5file.attrs.get(expected_attr_name)
@@ -264,12 +271,12 @@ def check_fragment_sizes(datafile, params):
 # is that each type of fragment can be tested individually, by calling this routine for
 # each type.  The test is driven by a set of parameters that describe both the fragments
 # to be tested (e.g. the Fragment type) and the characteristics that they should have
-# (e.g. any allowed error bits).
+# (e.g. any allowed status bits).
 #
 # The parameters that are required by this routine are the following:
 # * fragment_type_description - descriptive text for the fragment type, e.g. "WIB" or "PDS" or "Raw TP"
 # * fragment_type - Type of the Fragment, e.g. "ProtoWIB" or "Trigger_Primitive"
-# * error_bitmask - A mask to be applied to the error bits of the Fragment (default: 0xFFFFFFFF)
+# * status_bitmask - A mask to be applied to the status bits of the Fragment (default: 0xFFFFFFFF)
 def check_fragment_error_flags(datafile, params):
     if params['expected_fragment_count'] == 0:
         return True
@@ -288,23 +295,23 @@ def check_fragment_error_flags(datafile, params):
     for rec in records:
         trigger_type_string = get_trigger_type_string(h5_file, rec)
         rno_strings = get_record_ordinal_strings(rec, records)
-        error_bitmask = get_fragment_error_bitmask(params, trigger_type_string, rno_strings)
+        status_bitmask = get_fragment_status_bitmask(params, trigger_type_string, rno_strings)
         if (debug_mask & 0x4) != 0:
-            print(f'DataFileChecks Debug: the fragment error bitmask is {hex(error_bitmask)} for TC type {trigger_type_string} and record ordinal strings {rno_strings}')
-        if error_bitmask not in error_mask_list:
-            error_mask_list.append(error_bitmask)
+            print(f'DataFileChecks Debug: the fragment status bitmask is {hex(status_bitmask)} for TC type {trigger_type_string} and record ordinal strings {rno_strings}')
+        if status_bitmask not in error_mask_list:
+            error_mask_list.append(status_bitmask)
         if subdet_string == "":
             src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
         else:
             src_ids = h5_file.get_source_ids_for_fragtype_and_subdetector(rec, params['fragment_type'], subdet_string)
         for src_id in src_ids:
             frag=h5_file.get_frag(rec,src_id);
-            error_bits=frag.get_error_bits()
+            status_bits=frag.get_status_bits()
             if (debug_mask & 0x8) != 0:
-                print(f'  DataFileChecks Debug: fragment error bits for SourceID {src_id} are {hex(error_bits)}')
-            if error_bits & error_bitmask != 0:
+                print(f'  DataFileChecks Debug: fragment status bits for SourceID {src_id} are {hex(status_bits)}')
+            if status_bits & status_bitmask != 0:
                 passed=False
-                print(f" \N{POLICE CARS REVOLVING LIGHT} {params['fragment_type_description']} fragment for SrcID {src_id.to_string()} in record {rec} has the following unmasked error flags set: {get_set_error_bit_names(error_bits & error_bitmask)} \N{POLICE CARS REVOLVING LIGHT}")
+                print(f" \N{POLICE CARS REVOLVING LIGHT} {params['fragment_type_description']} fragment for SrcID {src_id.to_string()} in record {rec} has the following unmasked error flags set: {get_set_status_bit_names(status_bits & status_bitmask)} \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
         error_mask_list.sort()
         print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have no error flags set (after applying bitmasks)")
