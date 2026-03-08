@@ -144,6 +144,11 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
         "--skip-resource-checks"
     )
 
+    # 06-Mar-2026, KAB: if the DAQ session name has not explicitly been set by the
+    # user, set it here so that we can make use of it from this point onward.
+    if not drunc_config.daq_session_name:
+        drunc_config.daq_session_name = drunc_config.config_session_name
+
     config_dir = tmp_path_factory.mktemp("config")
     boot_file = config_dir / "boot.json"
     configfile = config_dir / "config.json"
@@ -229,7 +234,7 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
             include=local_object_databases
             + [str(readout_db), str(trigger_db), str(dataflow_db)]
             + ([str(hsi_db)] if drunc_config.fake_hsi_enabled else []),
-            session_name=drunc_config.session,
+            session_name=drunc_config.config_session_name,
             op_env=drunc_config.op_env,
             connectivity_service_is_infrastructure_app=drunc_config.drunc_connsvc,
             disable_connectivity_service=disable_connectivity_service,
@@ -239,17 +244,17 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     if drunc_config.connsvc_port is not None:
         drunc_config.connsvc_port = set_connectivity_service_port(
             oksfile=str(config_db),
-            session_name=drunc_config.session,
+            session_name=drunc_config.config_session_name,
             connsvc_port=drunc_config.connsvc_port, # Default is 0, which causes random port to be selected
         )
     # 05-Nov-2025, KAB, MiR: added the setting of a random RC port
-    set_rc_controller_port(oksfile=str(config_db), session_name=drunc_config.session, rc_port=0)
+    set_rc_controller_port(oksfile=str(config_db), session_name=drunc_config.config_session_name, rc_port=0)
 
     # 03-Jul-2025, KAB: added the setting of the TRACE_FILE env var in the OKS Session,
     # if it is set in the user's environment, and if it is not already set in the configuration.
     try:
         trace_file_env_var = os.environ["TRACE_FILE"]
-        set_session_env_var(str(config_db), drunc_config.session, "TRACE_FILE", trace_file_env_var, overwrite=False)
+        set_session_env_var(str(config_db), drunc_config.config_session_name, "TRACE_FILE", trace_file_env_var, overwrite=False)
     except KeyError:
         pass
 
@@ -291,7 +296,7 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     db.commit()
 
     # For preconfigured tests, disable starting the ConnSvc if the ConnectionService is an ifapp or unused
-    sessionobj = db.get_dal(class_name="Session", uid=drunc_config.session)
+    sessionobj = db.get_dal(class_name="Session", uid=drunc_config.config_session_name)
     if sessionobj.connectivity_service is None:
         drunc_config.drunc_connsvc = True
     for if_app in sessionobj.infrastructure_applications:
@@ -408,7 +413,7 @@ def run_nanorc(request, create_config_files, process_manager_type, tmp_path_fact
 
         connsvc_log = open(
             run_dir
-            / f"log_{getpass.getuser()}_{create_config_files.config.session}_connectivity-service.txt",
+            / f"log_{getpass.getuser()}_{create_config_files.config.daq_session_name}_connectivity-service.txt",
             "w",
         )
         connsvc_obj = subprocess.Popen(
@@ -517,8 +522,8 @@ def run_nanorc(request, create_config_files, process_manager_type, tmp_path_fact
         + nanorc_option_strings
         + [str(process_manager_type.pm_type)]  # 29-Dec-2025, KAB: support for ProcMgr choices
         + [str(create_config_files.config_file)]
-        + [str(create_config_files.config.session)]
-        + [str(create_config_files.config.session_name if create_config_files.config.session_name else create_config_files.config.session)]
+        + [str(create_config_files.config.config_session_name)]
+        + [str(create_config_files.config.daq_session_name)]
         + command_list,
         cwd=run_dir,
     )
@@ -540,8 +545,8 @@ def run_nanorc(request, create_config_files, process_manager_type, tmp_path_fact
         subprocess.run(["killall", "gunicorn", "drunc-controller"])
 
     result.confgen_config = create_config_files.config
-    result.session = create_config_files.config.session
-    result.session_name = create_config_files.config.session_name
+    result.config_session_name = create_config_files.config.config_session_name
+    result.daq_session_name = create_config_files.config.daq_session_name
     result.nanorc_commands = command_list
     result.run_dir = run_dir
     result.config_dir = create_config_files.config_dir
@@ -561,7 +566,7 @@ def run_nanorc(request, create_config_files, process_manager_type, tmp_path_fact
             trmon_dir.glob(f"{create_config_files.config.op_env}_trmon_*.hdf5")
         )
     result.log_files = list(run_dir.glob("log_*.txt")) + list(run_dir.glob("log_*.log"))
-    result.opmon_files = list(run_dir.glob(f"info*{result.session_name if result.session_name else result.session}*.json"))
+    result.opmon_files = list(run_dir.glob(f"info*{result.daq_session_name}*.json"))
     # 10-Dec-2025, KAB: added the DAQ session overall time so that we can use this
     # information in fine-tuning the allowed ranges in time-based checking of test results.
     result.daq_session_overall_time = time_after - time_before
