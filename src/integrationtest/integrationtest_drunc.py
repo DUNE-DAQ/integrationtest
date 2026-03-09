@@ -199,6 +199,7 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
                 n_streams=drunc_config.dro_map_config.n_streams,
                 n_apps=drunc_config.dro_map_config.n_apps,
                 det_id=drunc_config.dro_map_config.det_id,
+                fragment_type=drunc_config.fake_data_fragment_type,
             )
 
         generate_trigger(
