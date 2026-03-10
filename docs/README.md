@@ -60,7 +60,7 @@ pytest -s test_integration.py
 
 The test framework handles running python with the confgen specified in the test file, then runs drunc with the generated OKS database (a copy of the database is always made to prevent accidental changes). Finally, the actual test functions are run.
 
-(The framework searches for the `drunc-unified-shell` script in `$PATH`. If you want to use a different run control implementation from elsewhere, you can use the `--nanorc-path` argument to point the test to the script).
+(The framework searches for the `drunc-unified-shell` script in `$PATH`. If you want to use a different run control implementation from elsewhere, you can use the `--dunerc-path` argument to point the test to the script).
 
 ## Writing test functions
 

@@ -58,6 +58,7 @@ class drunc_config:
     trmon_app_enabled: bool = False
     fake_hsi_enabled: bool = False
     use_fakedataprod: bool = False
+    fake_data_fragment_type: str = ""
     config_db: str = ""
     n_df_apps: int = 1
     n_data_writers: int = 1
@@ -78,9 +79,3 @@ class CreateConfigResult:
     data_dirs: list[str]
     tpstream_data_dirs: list[str]
     trmon_data_dirs: list[str]
-
-
-# 29-Dec-2025, KAB: added support for different run control process managers
-@dataclass
-class ProcessManagerChoice:
-    pm_type: str
