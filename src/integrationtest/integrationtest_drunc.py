@@ -8,7 +8,6 @@ from integrationtest.integrationtest_commandline import file_exists
 from integrationtest.resource_validation import ResourceValidator
 from integrationtest.data_classes import (
     CreateConfigResult,
-    ProcessManagerChoice,
     config_substitution,
     attribute_substitution,
     relationship_substitution,
@@ -72,9 +71,34 @@ def pytest_generate_tests(metafunc):
     # and parametrize the fixtures here in pytest_generate_tests,
     # which is run at pytest startup
 
-    # 29-Dec-2025, KAB: added default process manager choice
-    if not hasattr(metafunc.module, "process_manager_choices"):
-        metafunc.module.process_manager_choices = { "StandAloneSSH_PM" : {"pm_type": "ssh-standalone"} }
+
+    # Feb 2026, KAB, Handle run control process manager types...
+    # Choices provided on the command-line, via the --process-manager-type
+    #    option, have the highest priority. The possible values that can be
+    #    specified for this option include a pipe-delimited list of PM types.
+    # If no choices were provided on the command-line, then we check for
+    #    choice(s) specified in the pytest module file (aka one of our
+    #    'integtest' files). For this, we check for a variable named
+    #    'process_manager_choices'.
+    # If neither of those two ways of specifying the PM type were used in
+    #    the current testing, then we default to the SSH standalone PM type.
+    # In all cases, we want to create a dictionary that has a descriptive name
+    #    and the PM type for each entry
+    cmdline_pmtype = metafunc.config.getoption("--process-manager-type")
+    if cmdline_pmtype:  # a PM type was specified on the command line
+        # translate the one or more PM types into a dictionary
+        pmtype_dict = {}
+        type_list = cmdline_pmtype.split('|')
+        for pm_type in type_list:
+            type_name = pm_type.upper()+"_PM"
+            type_name = type_name.replace("-", "_")
+            addl_dict_entry = {type_name : pm_type}
+            pmtype_dict.update(addl_dict_entry)
+        # assign this new dictionary to the metafunc.module parameter used later
+        metafunc.module.process_manager_choices = pmtype_dict
+    elif not hasattr(metafunc.module, "process_manager_choices"):
+        # create an entry for the default choice of ssh-standalone
+        metafunc.module.process_manager_choices = { "StandAloneSSH_PM" : "ssh-standalone" }
 
     # 27-Feb-2026, KAB: support for the nanorc --> dunerc transition
     # We will be able to remove the following two lines once all integtests
@@ -97,10 +121,7 @@ def pytest_generate_tests(metafunc):
 # 29-Dec-2025, KAB: added fixture to handle different process manager choices
 @pytest.fixture(scope="module")
 def process_manager_type(request, tmp_path_factory):
-    result = ProcessManagerChoice (
-        pm_type = request.param["pm_type"]
-    )
-    yield result
+    yield request.param
 
 @pytest.fixture(scope="module")
 def check_system_resources(request):
@@ -534,7 +555,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     result.completed_process = subprocess.run(
         [dunerc]
         + dunerc_option_strings
-        + [str(process_manager_type.pm_type)]  # 29-Dec-2025, KAB: support for ProcMgr choices
+        + [process_manager_type]  # 29-Dec-2025, KAB: support for ProcMgr choices
         + [str(create_config_files.config_file)]
         + [str(create_config_files.config.session)]
         + [str(create_config_files.config.session_name if create_config_files.config.session_name else create_config_files.config.session)]
