@@ -61,8 +61,8 @@ def parametrize_fixture_with_items(metafunc, fixture, itemsname):
 
 
 def pytest_generate_tests(metafunc):
-    # We want to be able to run multiple confgens and multiple nanorcs
-    # from one pytest module, but the fixtures for running the
+    # We want to be able to run multiple confgens and multiple DAQ
+    # sessions from one pytest module, but the fixtures for running the
     # external commands are module-scoped, so we need to parametrize
     # the fixtures. This could be done by adding "params=..." to the
     # @pytest.fixture decorator at each fixture, but the user doesn't
@@ -100,10 +100,22 @@ def pytest_generate_tests(metafunc):
         # create an entry for the default choice of ssh-standalone
         metafunc.module.process_manager_choices = { "StandAloneSSH_PM" : "ssh-standalone" }
 
+    # 27-Feb-2026, KAB: support for the nanorc --> dunerc transition
+    # We will be able to remove the following two lines once all integtests
+    # have been converted to use dunerc instead of nanorc.
+    if not hasattr(metafunc.module, "dunerc_command_list") and hasattr(metafunc.module, "nanorc_command_list"):
+        metafunc.module.dunerc_command_list = metafunc.module.nanorc_command_list
 
     parametrize_fixture_with_items(metafunc, "create_config_files", "confgen_arguments")
     parametrize_fixture_with_items(metafunc, "process_manager_type", "process_manager_choices")
-    parametrize_fixture_with_items(metafunc, "run_nanorc", "nanorc_command_list")
+
+    # 27-Feb-2026, KAB: support for the nanorc --> dunerc transition
+    # We will be able to just use "run_dunerc" once all integtests
+    # have been converted to use dunerc instead of nanorc.
+    if "run_nanorc" in metafunc.fixturenames:
+        parametrize_fixture_with_items(metafunc, "run_nanorc", "dunerc_command_list")
+    if "run_dunerc" in metafunc.fixturenames:
+        parametrize_fixture_with_items(metafunc, "run_dunerc", "dunerc_command_list")
 
 
 # 29-Dec-2025, KAB: added fixture to handle different process manager choices
@@ -367,12 +379,18 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     yield result
 
 
+# 27-Feb-2026, KAB: support for the nanorc --> dunerc transition
+# Temporary fixture until all integtests have been changed to use "dunerc".
 @pytest.fixture(scope="module")
-def run_nanorc(request, create_config_files, process_manager_type, tmp_path_factory):
-    """Run nanorc with the OKS DB files created by `create_config_files`. The
-    commands specified by the `nanorc_command_list` variable in the
-    test module are executed. If `nanorc_command_list`'s items are
-    themselves lists, then nanorc will be run multiple times, once for
+def run_nanorc(run_dunerc):
+    yield run_dunerc
+
+@pytest.fixture(scope="module")
+def run_dunerc(request, create_config_files, process_manager_type, tmp_path_factory):
+    """Run drunc with the OKS DB files created by `create_config_files`. The
+    commands specified by the `dunerc_command_list` variable in the
+    test module are executed. If `dunerc_command_list`'s items are
+    themselves lists, then drunc will be run multiple times, once for
     each set of arguments in the list
 
     """
@@ -441,22 +459,22 @@ def run_nanorc(request, create_config_files, process_manager_type, tmp_path_fact
             env=connsvc_env,
         )
 
-    nanorc = request.config.getoption("--nanorc-path")
-    if nanorc is None:
-        nanorc = "drunc-unified-shell"
-    nanorc_options = request.config.getoption("--nanorc-option")
-    nanorc_option_strings = []
-    if nanorc_options is not None:
-        for opt in nanorc_options:
+    dunerc = request.config.getoption("--dunerc-path")
+    if dunerc is None:
+        dunerc = "drunc-unified-shell"
+    dunerc_options = request.config.getoption("--dunerc-option")
+    dunerc_option_strings = []
+    if dunerc_options is not None:
+        for opt in dunerc_options:
             if len(opt) > 2:
-                print("Nanorc options take either 0 or 1 arguments!")
+                print("dunerc options take either 0 or 1 arguments!")
                 pytest.fail()
             if len(opt[0]) == 1:
-                nanorc_option_strings.append("-" + "".join(opt))
+                dunerc_option_strings.append("-" + "".join(opt))
             else:
-                nanorc_option_strings.append("--" + opt[0])
+                dunerc_option_strings.append("--" + opt[0])
                 if len(opt) == 2:
-                    nanorc_option_strings.append(opt[1])
+                    dunerc_option_strings.append(opt[1])
 
     class RunResult:
         pass
@@ -536,9 +554,9 @@ def run_nanorc(request, create_config_files, process_manager_type, tmp_path_fact
     result = RunResult()
     time_before = time.time()
     result.completed_process = subprocess.run(
-        [nanorc]
-        + nanorc_option_strings
-        + [str(process_manager_type)]
+        [dunerc]
+        + dunerc_option_strings
+        + [process_manager_type]  # 29-Dec-2025, KAB: support for ProcMgr choices
         + [str(create_config_files.config_file)]
         + [str(create_config_files.config.session)]
         + [str(create_config_files.config.session_name if create_config_files.config.session_name else create_config_files.config.session)]
@@ -565,7 +583,10 @@ def run_nanorc(request, create_config_files, process_manager_type, tmp_path_fact
     result.confgen_config = create_config_files.config
     result.session = create_config_files.config.session
     result.session_name = create_config_files.config.session_name
+    # 27-Feb-2026, KAB: the nanorc_commands return value can be removed once
+    # all integtests have been changed to use "dunerc".
     result.nanorc_commands = command_list
+    result.dunerc_commands = command_list
     result.run_dir = run_dir
     result.config_dir = create_config_files.config_dir
     result.data_files = []
