@@ -57,6 +57,7 @@ class drunc_config:
     trmon_app_enabled: bool = False
     fake_hsi_enabled: bool = False
     use_fakedataprod: bool = False
+    fake_data_fragment_type: str = ""
     config_db: str = ""
     n_df_apps: int = 1
     n_data_writers: int = 1
