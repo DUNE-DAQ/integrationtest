@@ -551,6 +551,8 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     print(
         "++++++++++ DRUNC Run BEGIN ++++++++++", flush=True
     )  # Apparently need to flush before subprocess.run
+    print("", flush=True)
+    print("*** Temporarily capturing the DRUNC output (will print it out at the end) ***", flush=True)
     result = RunResult()
     time_before = time.time()
     result.completed_process = subprocess.run(
@@ -561,9 +563,16 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         + [str(create_config_files.config.session)]
         + [str(create_config_files.config.session_name if create_config_files.config.session_name else create_config_files.config.session)]
         + command_list,
-        cwd=run_dir,
+        cwd=run_dir, capture_output=True, text=True
     )
     time_after = time.time()
+
+    print("", flush=True)
+    print("*** DRUNC stdout:", flush=True)
+    print(result.completed_process.stdout)
+    print("", flush=True)
+    print("*** DRUNC stderr:", flush=True)
+    print(result.completed_process.stderr)
 
     if connsvc_obj is not None:
         time.sleep(1)
