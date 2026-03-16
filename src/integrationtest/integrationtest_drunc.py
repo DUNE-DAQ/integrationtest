@@ -551,28 +551,45 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     print(
         "++++++++++ DRUNC Run BEGIN ++++++++++", flush=True
     )  # Apparently need to flush before subprocess.run
-    print("", flush=True)
-    print("*** Temporarily capturing the DRUNC output (will print it out at the end) ***", flush=True)
     result = RunResult()
     time_before = time.time()
-    result.completed_process = subprocess.run(
+    rc_process = subprocess.Popen(
         [dunerc]
         + dunerc_option_strings
-        + [process_manager_type]  # 29-Dec-2025, KAB: support for ProcMgr choices
+        + [process_manager_type]
         + [str(create_config_files.config_file)]
         + [str(create_config_files.config.session)]
         + [str(create_config_files.config.session_name if create_config_files.config.session_name else create_config_files.config.session)]
         + command_list,
-        cwd=run_dir, capture_output=True, text=True
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        cwd=run_dir
+    )
+
+    full_output = ""
+    for line in rc_process.stdout:
+        #if "Booting session" in line or "Running transition" in line \
+        #   or ("wait" in line and "running" in line) or "exit code" in line:
+        print(line, end='', flush=True)
+        full_output += line
+
+    rc_process.communicate()
+    proc_returncode = rc_process.returncode
+
+    result.completed_process = subprocess.CompletedProcess(
+        [dunerc]
+        + dunerc_option_strings
+        + [process_manager_type]
+        + [str(create_config_files.config_file)]
+        + [str(create_config_files.config.session)]
+        + [str(create_config_files.config.session_name if create_config_files.config.session_name else create_config_files.config.session)]
+        + command_list,
+        returncode=proc_returncode,
+        stdout=full_output
     )
     time_after = time.time()
-
-    print("", flush=True)
-    print("*** DRUNC stdout:", flush=True)
-    print(result.completed_process.stdout)
-    print("", flush=True)
-    print("*** DRUNC stderr:", flush=True)
-    print(result.completed_process.stderr)
 
     if connsvc_obj is not None:
         time.sleep(1)
