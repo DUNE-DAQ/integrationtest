@@ -42,6 +42,13 @@ def pytest_addoption(parser):
         help="The run control process manager type to use for this test, e.g. ssh-standalone",
         required=False
     )
+    parser.addoption(
+        "--integtest-verbosity",
+        action="store",
+        default=5,
+        help="The volume of messages that are printed out by the integration test infrastructure",
+        required=False
+    )
 
 def pytest_configure(config):
     for opt in ("--dunerc-path",):

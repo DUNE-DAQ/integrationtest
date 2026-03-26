@@ -78,3 +78,11 @@ class CreateConfigResult:
     data_dirs: list[str]
     tpstream_data_dirs: list[str]
     trmon_data_dirs: list[str]
+
+@dataclass
+class IntegtestVerbosityLevels:
+    most_concise: int = 1  # shows just errors and warnings
+    test_results: int = 2  # shows validation check successes as well as failures
+    drunc_transitions: int = 3  # shows drunc transitions plus test results
+    resource_check_debug_info: int = 4  # shows ResourceValidation debug info plus test results, drunc transitions
+    most_verbose: int = 5  # shows everything

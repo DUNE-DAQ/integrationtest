@@ -141,9 +141,9 @@ def check_file_attributes(datafile, was_test_run="true"):
             attr_value = datafile.h5file.attrs.get(expected_attr_name)
             if attr_value != was_test_run:
                 passed=False
-                print(f"\N{POLICE CARS REVOLVING LIGHT} The value in HDF5 File Attribute '{expected_attr_name}' ({attr_value}) does not match the expected value ({was_test_run}) \N{POLICE CARS REVOLVING LIGHT}")
+                print(f"\N{POLICE CARS REVOLVING LIGHT} The value in HDF5 File Attribute '{expected_attr_name}' ({attr_value}) does not match the expected value ({was_test_run}) in file {base_filename} \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"\N{WHITE HEAVY CHECK MARK} All Attribute tests passed")
+        print(f"\N{WHITE HEAVY CHECK MARK} All Attribute tests passed for file {base_filename}")
     return passed
 
 def check_event_count(datafile, expected_value, tolerance):

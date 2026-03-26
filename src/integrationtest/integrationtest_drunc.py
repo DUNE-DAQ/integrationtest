@@ -3,6 +3,8 @@ import subprocess
 import pathlib
 import getpass
 import os
+import sys
+from io import StringIO
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
 from integrationtest.resource_validation import ResourceValidator
@@ -13,6 +15,7 @@ from integrationtest.data_classes import (
     relationship_substitution,
     list_element_substitution,
     list_element_addition,
+    IntegtestVerbosityLevels,
 )
 from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate import (
@@ -177,6 +180,16 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     skip_resource_checks = request.config.getoption(
         "--skip-resource-checks"
     )
+
+    # 26-Mar-2026, KAB: suppress output messages, if requested
+    integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
+    original_stdout = sys.stdout
+    if integtest_verbosity_level < IntegtestVerbosityLevels.most_verbose:
+        if integtest_verbosity_level >= (IntegtestVerbosityLevels.most_verbose / 2):
+            print("\n----------------------------------------", flush=True)
+            print("*** Messages related to configuration generation have been suppressed ***", flush=True)
+            print("----------------------------------------", flush=True)
+        sys.stdout = catcher = StringIO()
 
     config_dir = tmp_path_factory.mktemp("config")
     boot_file = config_dir / "boot.json"
@@ -376,6 +389,9 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
         trmon_data_dirs=trmon_dirs
     )
 
+    # restore the usual stdout behavior, if needed
+    if integtest_verbosity_level < IntegtestVerbosityLevels.most_verbose:
+        sys.stdout = original_stdout
     yield result
 
 
@@ -399,6 +415,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     disable_connectivity_service = request.config.getoption(
         "--disable-connectivity-service"
     )
+    integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
 
     run_dir = tmp_path_factory.mktemp("run")
 
@@ -438,9 +455,10 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         and create_config_files.config.connsvc_port is not None
     ):
         # start connsvc
-        print(
-            f"Starting Connectivity Service on port {create_config_files.config.connsvc_port}"
-        )
+        if integtest_verbosity_level >= IntegtestVerbosityLevels.most_verbose:
+            print(
+                f"Starting Connectivity Service on port {create_config_files.config.connsvc_port}"
+            )
 
         connsvc_env = os.environ.copy()
         connsvc_env["CONNECTION_FLASK_DEBUG"] = str(
@@ -486,6 +504,11 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     tpset_paths = create_config_files.tpstream_data_dirs
     trmon_dirs = [run_dir]
     trmon_paths = create_config_files.trmon_data_dirs
+
+    # suppress output, if requested
+    original_stdout = sys.stdout
+    if integtest_verbosity_level < IntegtestVerbosityLevels.most_verbose:
+        sys.stdout = catcher = StringIO()
 
     for path in rawdata_paths:
         rawdata_dir = pathlib.Path(path)
@@ -548,9 +571,10 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
                 print(f"Deleting TRMon data file from earlier test: {str(file_obj)}")
                 file_obj.unlink(True)  # missing is OK
 
-    print(
-        "++++++++++ DRUNC Run BEGIN ++++++++++", flush=True
-    )  # Apparently need to flush before subprocess.run
+    # restore the usual stdout behavior, if needed
+    if integtest_verbosity_level < IntegtestVerbosityLevels.most_verbose:
+        sys.stdout = original_stdout
+
     result = RunResult()
     time_before = time.time()
     # 25-Mar-2026, KAB: use subprocess.Popen to manage the run control session so that we can
@@ -571,10 +595,27 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     )
 
     # print out each line of captured output, as well as add it to the string that we
-    # pass back to the user
+    # pass back to the user, subject to the verbosity level that the user has requested
+    number_of_lines_printed_to_the_console = 0
     full_output = ""
     for line in rc_process.stdout:
-        print(line, end='', flush=True)
+        should_be_printed = False
+        if integtest_verbosity_level < IntegtestVerbosityLevels.most_verbose:
+            if "error" in line.lower() or "warning" in line.lower():
+                should_be_printed = True
+        else:
+            should_be_printed = True
+        if integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_transitions:
+            if "Booting session" in line or "Running transition" in line \
+               or ("wait" in line and "running" in line) or "exit code" in line:
+                should_be_printed = True
+        if should_be_printed:
+            if number_of_lines_printed_to_the_console == 0:
+                print(
+                    "++++++++++ DRUNC Run BEGIN ++++++++++", flush=True
+                )  # Apparently need to flush before subprocess.run
+            print(line, end='', flush=True)
+            number_of_lines_printed_to_the_console += 1
         full_output += line
 
     rc_process.communicate()
@@ -640,5 +681,8 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     # 10-Dec-2025, KAB: added the DAQ session overall time so that we can use this
     # information in fine-tuning the allowed ranges in time-based checking of test results.
     result.daq_session_overall_time = time_after - time_before
-    print("---------- DRUNC Run END ----------", flush=True)
+    if number_of_lines_printed_to_the_console > 0:
+        print("---------- DRUNC Run END ----------", flush=True)
+    else:
+        print("", flush=True)
     yield result
