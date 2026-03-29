@@ -45,7 +45,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--integtest-verbosity",
         action="store",
-        default=5,
+        default=3,
         help="The volume of messages that are printed out by the integration test infrastructure",
         required=False
     )

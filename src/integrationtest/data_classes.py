@@ -81,8 +81,9 @@ class CreateConfigResult:
 
 @dataclass
 class IntegtestVerbosityLevels:
-    most_concise: int = 1  # shows just errors and warnings
-    test_results: int = 2  # shows validation check successes as well as failures
+    just_errors_and_warnings: int = 1  # shows just errors and warnings
+    drunc_boot_terminate: int = 2  # shows validation check successes as well as failures
     drunc_transitions: int = 3  # shows drunc transitions plus test results
-    resource_check_debug_info: int = 4  # shows ResourceValidation debug info plus test results, drunc transitions
-    most_verbose: int = 5  # shows everything
+    integtest_debug: int = 4  # shows ResourceValidation debug info plus test results, drunc transitions
+    full_output: int = 5  # shows everything
+    drunc_debug: int = 6  # includes drunc debug messages

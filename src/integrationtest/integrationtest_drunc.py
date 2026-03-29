@@ -136,8 +136,14 @@ def check_system_resources(request):
     the recommended resources are not present, then a warning is printed
     """
     skip_resource_checks = request.config.getoption("--skip-resource-checks")
+    integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
 
     resval = getattr(request.module, "resource_validator", ResourceValidator())
+
+    if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+        resval_debug_string = resval.get_debug_string()
+        print(resval_debug_string)
+
     if not resval.required_resources_are_present:
         resval_report_string = resval.get_required_resources_report()
         print(f"\n\N{LARGE YELLOW CIRCLE} {resval_report_string}")
@@ -147,16 +153,18 @@ def check_system_resources(request):
             del request.session.items[1:]
             pytest.skip(f"\n\N{LARGE YELLOW CIRCLE} {resval_report_string}")
     if not resval.recommended_resources_are_present:
-        resval_report_string = resval.get_recommended_resources_report()
-        print(f"\n*** Note: {resval_report_string}")
+        if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+            resval_report_string = resval.get_recommended_resources_report()
+            print(f"\n*** Note: {resval_report_string}")
 
     yield True
 
     # 16-Feb-2026, KAB: added a printout for recommended resources after the "yield"
     # statement so that it gets printed out at the end of the output that the user sees.
     if not resval.recommended_resources_are_present:
-        resval_report_string = resval.get_recommended_resources_report()
-        print(f"\n*** Note: {resval_report_string}")
+        if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+            resval_report_string = resval.get_recommended_resources_report()
+            print(f"\n*** Note: {resval_report_string}")
 
 @pytest.fixture(scope="module")
 def create_config_files(request, tmp_path_factory, check_system_resources):
@@ -184,8 +192,8 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     # 26-Mar-2026, KAB: suppress output messages, if requested
     integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
     original_stdout = sys.stdout
-    if integtest_verbosity_level < IntegtestVerbosityLevels.most_verbose:
-        if integtest_verbosity_level >= (IntegtestVerbosityLevels.most_verbose / 2):
+    if integtest_verbosity_level < IntegtestVerbosityLevels.full_output:
+        if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
             print("\n----------------------------------------", flush=True)
             print("*** Messages related to configuration generation have been suppressed ***", flush=True)
             print("----------------------------------------", flush=True)
@@ -390,7 +398,7 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     )
 
     # restore the usual stdout behavior, if needed
-    if integtest_verbosity_level < IntegtestVerbosityLevels.most_verbose:
+    if integtest_verbosity_level < IntegtestVerbosityLevels.full_output:
         sys.stdout = original_stdout
     yield result
 
@@ -455,7 +463,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         and create_config_files.config.connsvc_port is not None
     ):
         # start connsvc
-        if integtest_verbosity_level >= IntegtestVerbosityLevels.most_verbose:
+        if integtest_verbosity_level >= IntegtestVerbosityLevels.full_output:
             print(
                 f"Starting Connectivity Service on port {create_config_files.config.connsvc_port}"
             )
@@ -507,7 +515,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
 
     # suppress output, if requested
     original_stdout = sys.stdout
-    if integtest_verbosity_level < IntegtestVerbosityLevels.most_verbose:
+    if integtest_verbosity_level < IntegtestVerbosityLevels.full_output:
         sys.stdout = catcher = StringIO()
 
     for path in rawdata_paths:
@@ -572,7 +580,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
                 file_obj.unlink(True)  # missing is OK
 
     # restore the usual stdout behavior, if needed
-    if integtest_verbosity_level < IntegtestVerbosityLevels.most_verbose:
+    if integtest_verbosity_level < IntegtestVerbosityLevels.full_output:
         sys.stdout = original_stdout
 
     result = RunResult()
@@ -600,11 +608,15 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     full_output = ""
     for line in rc_process.stdout:
         should_be_printed = False
-        if integtest_verbosity_level < IntegtestVerbosityLevels.most_verbose:
-            if "error" in line.lower() or "warning" in line.lower():
+        if integtest_verbosity_level < IntegtestVerbosityLevels.full_output:
+            if ("error" in line.lower() and not " In error " in line) or "warning" in line.lower():
                 should_be_printed = True
         else:
             should_be_printed = True
+        if integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_boot_terminate:
+            if "Booting session" in line or \
+               ("Current FSM status is " in line and ("initial" in line or "running" in line)):
+                should_be_printed = True
         if integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_transitions:
             if "Booting session" in line or "Running transition" in line \
                or ("wait" in line and "running" in line) or "exit code" in line:
@@ -612,7 +624,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         if should_be_printed:
             if number_of_lines_printed_to_the_console == 0:
                 print(
-                    "++++++++++ DRUNC Run BEGIN ++++++++++", flush=True
+                    "\n++++++++++ DRUNC Run BEGIN ++++++++++", flush=True
                 )  # Apparently need to flush before subprocess.run
             print(line, end='', flush=True)
             number_of_lines_printed_to_the_console += 1

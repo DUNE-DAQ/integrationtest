@@ -20,8 +20,6 @@
 # resource_validator.cpu_count_needs(32, 64)
 # resource_validator.free_memory_needs(28)
 # # set other minimum values, if desired
-# resval_debug_string = resource_validator.get_debug_string()
-# print(f"{resval_debug_string}")
 # # The check_system_resources fixture will check that the system has the required resources
 
 import os
