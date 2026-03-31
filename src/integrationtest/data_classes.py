@@ -78,12 +78,3 @@ class CreateConfigResult:
     data_dirs: list[str]
     tpstream_data_dirs: list[str]
     trmon_data_dirs: list[str]
-
-@dataclass
-class IntegtestVerbosityLevels:
-    just_errors_and_warnings: int = 1  # shows just errors and warnings
-    drunc_boot_terminate: int = 2  # shows validation check successes as well as failures
-    drunc_transitions: int = 3  # shows drunc transitions plus test results
-    integtest_debug: int = 4  # shows ResourceValidation debug info plus test results, drunc transitions
-    full_output: int = 5  # shows everything
-    drunc_debug: int = 6  # includes drunc debug messages

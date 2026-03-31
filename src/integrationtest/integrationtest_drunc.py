@@ -8,6 +8,10 @@ from io import StringIO
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
 from integrationtest.resource_validation import ResourceValidator
+from integrationtest.verbosity_helper import (
+    VerbosityHelper,
+    IntegtestVerbosityLevels,
+)
 from integrationtest.data_classes import (
     CreateConfigResult,
     config_substitution,
@@ -15,7 +19,6 @@ from integrationtest.data_classes import (
     relationship_substitution,
     list_element_substitution,
     list_element_addition,
-    IntegtestVerbosityLevels,
 )
 from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate import (
@@ -693,6 +696,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     # 10-Dec-2025, KAB: added the DAQ session overall time so that we can use this
     # information in fine-tuning the allowed ranges in time-based checking of test results.
     result.daq_session_overall_time = time_after - time_before
+    result.verbosity_helper = VerbosityHelper(integtest_verbosity_level)
     if number_of_lines_printed_to_the_console > 0:
         print("---------- DRUNC Run END ----------", flush=True)
     else:

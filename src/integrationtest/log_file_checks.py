@@ -92,7 +92,7 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
 def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilename_for_problems=True,
                         excluded_substring_map={}, required_substring_map={}, print_required_message_report=False):
     all_ok=True
-    print("") # Clear potential dot from pytest
+    #print("") # Clear potential dot from pytest
     for log in log_file_names:
         exclusions=[]
         requireds=[]
