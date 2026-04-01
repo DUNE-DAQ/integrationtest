@@ -3,6 +3,7 @@ import subprocess
 import pathlib
 import getpass
 import os
+import re
 import sys
 from io import StringIO
 import conffwk
@@ -430,6 +431,13 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
 
     run_dir = tmp_path_factory.mktemp("run")
 
+    if integtest_verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings:
+        current_test = os.environ.get("PYTEST_CURRENT_TEST")
+        match_obj = re.search(r".*\[(.+)-run_.*rc.*\d].*", current_test)
+        if match_obj:
+            current_test = match_obj.group(1)
+        print(f"\n\n-> {current_test} <-")
+
     # 15-Dec-2025, KAB: if one of our integtest bundle scripts has provided information
     # about itself in the execution environment of the currently running test, use that
     # information to create a file in the 'run' directory of the test. This is used by the
@@ -614,6 +622,12 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         if integtest_verbosity_level < IntegtestVerbosityLevels.full_output:
             if ("error" in line.lower() and not " In error " in line) or "warning" in line.lower():
                 should_be_printed = True
+                # 01-Apr-2026, KAB: special debugging for rare problem
+                if "Process manager did not exit in time, terminating forcefully" in line:
+                    print("\n\n====================")
+                    print(full_output)
+                    print(line)
+                    print("====================")
         else:
             should_be_printed = True
         if integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_boot_terminate:
@@ -627,7 +641,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         if should_be_printed:
             if number_of_lines_printed_to_the_console == 0:
                 print(
-                    "\n++++++++++ DRUNC Run BEGIN ++++++++++", flush=True
+                    "++++++++++ DRUNC Session BEGIN ++++++++++", flush=True
                 )  # Apparently need to flush before subprocess.run
             print(line, end='', flush=True)
             number_of_lines_printed_to_the_console += 1
@@ -698,7 +712,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     result.daq_session_overall_time = time_after - time_before
     result.verbosity_helper = VerbosityHelper(integtest_verbosity_level)
     if number_of_lines_printed_to_the_console > 0:
-        print("---------- DRUNC Run END ----------", flush=True)
-    else:
+        print("---------- DRUNC Session END ----------", flush=True)
+    elif integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_boot_terminate:
         print("", flush=True)
     yield result

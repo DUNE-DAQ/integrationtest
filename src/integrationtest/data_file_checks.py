@@ -418,10 +418,10 @@ def check_tr_type_multiplicity(datafile, multi_required):
 
     return True
 
-def trigger_sanity_checks():
+def trigger_sanity_checks(verbosity_helper: VerbosityHelper = VerbosityHelper(99)):
     all_ok = trigger_functions_checks()
     if all_ok:
-        datafile.vrb_hlpr.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
-                                    f"\n\N{WHITE HEAVY CHECK MARK} All trigger sanity checks passed successfully.")
+        verbosity_helper.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
+                                   f"\n\N{WHITE HEAVY CHECK MARK} All trigger sanity checks passed successfully.")
     else:
         print(f"\n\N{POLICE CARS REVOLVING LIGHT} Some trigger sanity checks FAILED. Please review the errors above.")

@@ -1,11 +1,17 @@
 from glob import glob
 import re
+from integrationtest.verbosity_helper import (
+    IntegtestVerbosityLevels,
+    VerbosityHelper
+)
 
 # 21-May-2025, KAB: tweak the print() statement default behavior so that it always flushes the output.
 import functools
 print = functools.partial(print, flush=True)
 
-def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, excluded_substring_list=[], required_substring_list=[], print_required_message_report=False):
+def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, excluded_substring_list=[],
+                      required_substring_list=[], print_required_message_report=False,
+                      verbosity_helper: VerbosityHelper = VerbosityHelper(99)):
     ok=True
     ignored_problem_count=0
     required_counts={ss:0 for ss in required_substring_list}
@@ -55,7 +61,8 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
             if match_obj:
                 required_counts[substr] += 1
     if ignored_problem_count > 0:
-        print(f"\N{CONSTRUCTION SIGN} Note: problems found in {ignored_problem_count} lines in {log_file_name} were ignored based on {len(excluded_substring_list)} phrase(s). \N{CONSTRUCTION SIGN}")
+        if verbosity_helper.compare_level(IntegtestVerbosityLevels.integtest_debug):
+            print(f"\N{CONSTRUCTION SIGN} Note: problems found in {ignored_problem_count} lines in {log_file_name} were ignored based on {len(excluded_substring_list)} phrase(s). \N{CONSTRUCTION SIGN}")
     overall_required_message_count = 0
     found_message_count = 0
     for (substr,count) in required_counts.items():
@@ -90,7 +97,8 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
 #   ex_sub_map = {"ruemu": ["expected problem phrase 1", "expected problem  phrase 2"]}
 #   ex_sub_map = {"ruemu": [r"expected problem phrase \d+"]}
 def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilename_for_problems=True,
-                        excluded_substring_map={}, required_substring_map={}, print_required_message_report=False):
+                        excluded_substring_map={}, required_substring_map={}, print_required_message_report=False,
+                        verbosity_helper: VerbosityHelper = VerbosityHelper(99)):
     all_ok=True
     #print("") # Clear potential dot from pytest
     for log in log_file_names:
@@ -108,7 +116,8 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
                 requireds += required_substring_map[required_key]
                 break
         
-        single_ok=log_has_no_errors(log, print_logfilename_for_problems, exclusions, requireds, print_required_message_report)
+        single_ok=log_has_no_errors(log, print_logfilename_for_problems, exclusions, requireds,
+                                    print_required_message_report, verbosity_helper)
 
         if not single_ok:
             all_ok=False

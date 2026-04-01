@@ -17,6 +17,9 @@ class VerbosityHelper:
     def __init__(self, verbosity_level):
         self.requested_verbosity = int(verbosity_level)
 
+    def get_requested_verbosity_level(self) -> int:
+        return self.requested_verbosity
+
     def compare_level(self, comparison_level) -> bool:
         return self.requested_verbosity >= int(comparison_level)
 
