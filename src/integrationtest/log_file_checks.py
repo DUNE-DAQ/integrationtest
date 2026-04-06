@@ -15,51 +15,53 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
     ok=True
     ignored_problem_count=0
     required_counts={ss:0 for ss in required_substring_list}
-    for line in open(log_file_name, errors='ignore').readlines():
+    with open(log_file_name, errors='ignore') as file_handle:
+        for line in file_handle.readlines():
 
-        # First check if the line appears to be in the standard format of messages produced with our logging package
-        # For lines produced with our logging package, the first two words in the line are the date and time, then the severity
+            # First check if the line appears to be in the standard format of messages produced with our logging package
+            # For lines produced with our logging package, the first two words in the line are the date and time, then the severity
 
-        bad_line=False
-        match_logline_prefix = re.search(r"^20[0-9][0-9]-[A-Z][a-z][a-z]-[0-9]+\s+[0-9:,]+\s+([A-Z]+)", line)
-        if match_logline_prefix:
-            severity=match_logline_prefix.group(1)
-            if severity in ("WARNING", "ERROR", "FATAL"):
-                bad_line=True
-        else: # This line's not produced with our logging package, so let's just look for bad words
-            if "WARN" in line or "Warn" in line or "warn" in line or \
-               "ERROR" in line or "Error" in line or "error" in line or \
-               "FATAL" in line or "Fatal" in line or "fatal" in line or \
-               "egmentation fault" in line:
-                bad_line=True
+            bad_line=False
+            match_logline_prefix = re.search(r"^20[0-9][0-9]-[A-Z][a-z][a-z]-[0-9]+\s+[0-9:,]+\s+([A-Z]+)", line)
+            if match_logline_prefix:
+                severity=match_logline_prefix.group(1)
+                if severity in ("WARNING", "ERROR", "FATAL"):
+                    bad_line=True
+            else: # This line's not produced with our logging package, so let's just look for bad words
+                if "WARN" in line or "Warn" in line or "warn" in line or \
+                   "ERROR" in line or "Error" in line or "error" in line or \
+                   "FATAL" in line or "Fatal" in line or "fatal" in line or \
+                   "egmentation fault" in line:
+                    bad_line=True
 
-        if bad_line:
-            ignore_this_problem=False
-            for excluded_substring in excluded_substring_list:
-                match_obj = re.search(excluded_substring, line)
-                if match_obj:
-                    ignore_this_problem=True
-                    break
-            if ignore_this_problem:
-                bad_line=False
-                ignored_problem_count+=1
-        if bad_line:
+            if bad_line:
+                ignore_this_problem=False
+                for excluded_substring in excluded_substring_list:
+                    match_obj = re.search(excluded_substring, line)
+                    if match_obj:
+                        ignore_this_problem=True
+                        break
+                if ignore_this_problem:
+                    bad_line=False
+                    ignored_problem_count+=1
+            if bad_line:
+                for substr in required_substring_list:
+                    match_obj = re.search(substr, line)
+                    if match_obj:
+                        bad_line=False
+                        break
+            if bad_line:
+                if ok and print_logfilename_for_problems:
+                    print("----------")
+                    print(f"\N{POLICE CARS REVOLVING LIGHT} Problem(s) found in logfile {log_file_name}:")
+                print(line)
+                ok=False
+
             for substr in required_substring_list:
                 match_obj = re.search(substr, line)
                 if match_obj:
-                    bad_line=False
-                    break
-        if bad_line:
-            if ok and print_logfilename_for_problems:
-                print("----------")
-                print(f"\N{POLICE CARS REVOLVING LIGHT} Problem(s) found in logfile {log_file_name}:")
-            print(line)
-            ok=False
+                    required_counts[substr] += 1
 
-        for substr in required_substring_list:
-            match_obj = re.search(substr, line)
-            if match_obj:
-                required_counts[substr] += 1
     if ignored_problem_count > 0:
         if verbosity_helper.compare_level(IntegtestVerbosityLevels.integtest_debug):
             print(f"\N{CONSTRUCTION SIGN} Note: problems found in {ignored_problem_count} lines in {log_file_name} were ignored based on {len(excluded_substring_list)} phrase(s). \N{CONSTRUCTION SIGN}")
