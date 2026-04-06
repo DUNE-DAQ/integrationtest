@@ -615,29 +615,51 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
 
     # print out each line of captured output, as well as add it to the string that we
     # pass back to the user, subject to the verbosity level that the user has requested
+    full_printout_watch_string = request.config.getoption("--dunerc-fullprint-watch-string")
+    full_printout_activated = False
     number_of_lines_printed_to_the_console = 0
     full_output = ""
     for line in rc_process.stdout:
-        should_be_printed = False
-        if integtest_verbosity_level < IntegtestVerbosityLevels.full_output:
+        should_be_printed = integtest_verbosity_level >= IntegtestVerbosityLevels.full_output or \
+            full_printout_activated
+
+        # check for a user-specified string that triggers full printout
+        # (this check needs to come first so that it sees the initial value of "should_be_printed")
+        if should_be_printed == False and len(full_printout_watch_string) > 0:
+            if full_printout_watch_string in line:
+                if number_of_lines_printed_to_the_console == 0:
+                    print("\n++++++++++ DRUNC Session BEGIN ++++++++++", flush=True)
+                else:
+                    print("++++++++++ Switching to full DRUNC output mode ++++++++++", flush=True)
+                print(
+                    f"+++ Displaying all DRUNC messages based on the presence of phrase \"{full_printout_watch_string}\" +++",
+                    flush=True
+                )
+                print(full_output)  # messages captured so far
+                full_printout_activated = True
+                should_be_printed = True
+                number_of_lines_printed_to_the_console = 1  # probably more, but good enough
+
+        # check for errors and warnings for all verbosity levels
+        if should_be_printed == False:
             if ("error" in line.lower() and not " In error " in line) or "warning" in line.lower():
                 should_be_printed = True
-                # 01-Apr-2026, KAB: special debugging for rare problem
-                if "Process manager did not exit in time, terminating forcefully" in line:
-                    print("\n\n====================")
-                    print(full_output)
-                    print(line)
-                    print("====================")
-        else:
-            should_be_printed = True
-        if integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_boot_terminate:
-            if "Booting session" in line or \
-               ("Current FSM status is " in line and ("initial" in line or "running" in line)):
-                should_be_printed = True
-        if integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_transitions:
-            if "Booting session" in line or "Running transition" in line \
-               or ("wait" in line and "running" in line) or "exit code" in line:
-                should_be_printed = True
+
+        # check for basic transition messages, if that level of verbosity is requested
+        if should_be_printed == False:
+            if integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_boot_terminate:
+                if "Booting session" in line or \
+                   ("Current FSM status is " in line and ("initial" in line or "running" in line)):
+                    should_be_printed = True
+
+        # check for all transition messages, if that level of verbosity is requested
+        if should_be_printed == False:
+            if integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_transitions:
+                if "Booting session" in line or "Running transition" in line \
+                   or ("wait" in line and "running" in line) or "exit code" in line:
+                    should_be_printed = True
+
+        # actually do the printout
         if should_be_printed:
             if number_of_lines_printed_to_the_console == 0:
                 print(

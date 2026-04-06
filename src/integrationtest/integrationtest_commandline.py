@@ -49,6 +49,13 @@ def pytest_addoption(parser):
         help="The volume of messages that are printed out by the integration test infrastructure",
         required=False
     )
+    parser.addoption(
+        "--dunerc-fullprint-watch-string",
+        action="store",
+        default="",
+        help="A phrase that, if found in run control messages, will trigger the printout of all RC messages",
+        required=False
+    )
 
 def pytest_configure(config):
     for opt in ("--dunerc-path",):
