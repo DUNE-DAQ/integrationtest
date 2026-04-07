@@ -89,7 +89,7 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
 #   stops as soon as one file with problems is found (default is to check them all)
 # * a flag to control whether the logfile name is printed to the console when an a problem
 #   is first found in that logfile (default is printout)
-# * the sets of excluded substrings.  This goal of this argument is to allow certain
+# * the sets of excluded substrings.  The goal of this argument is to allow certain
 #   select messages to be ignored so that overall checking of logfiles can remain enabled
 #   without being distracted by 'expected' problems.  This argument is expected to be a
 #   dictionary keyed by strings that might appear in the logfile name and having values
@@ -101,6 +101,12 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
 def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilename_for_problems=True,
                         excluded_substring_map={}, required_substring_map={}, print_required_message_report=False,
                         verbosity_helper: VerbosityHelper = VerbosityHelper(99)):
+
+    # 06-Apr-2026, KAB: if the verbosity level is set to enable DRUNC debug messages, add
+    # some strings to the excluded substring map so we don't trigger on those debug messages
+    if verbosity_helper.compare_level(IntegtestVerbosityLevels.drunc_debug):
+        excluded_substring_map["SSH_SHELL_process_manager"] = ["RAN:", "LogLevel=error"]
+
     all_ok=True
     #print("") # Clear potential dot from pytest
     for log in log_file_names:
