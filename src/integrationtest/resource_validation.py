@@ -56,7 +56,7 @@ class ResourceValidator:
     # method to specify the number of CPUs that is needed
     def cpu_count_needs(self, required_count=-1, recommended_count=-1):
         cpu_count = os.cpu_count()
-        self.debug_string += f"\nDEBUG: CPU count is {cpu_count}"
+        self.debug_string += f"DEBUG: CPU count is {cpu_count}"
         if required_count >= 0:
             self.debug_string += f", required number is {required_count}"
         if recommended_count >= 0:

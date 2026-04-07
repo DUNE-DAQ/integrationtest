@@ -46,6 +46,11 @@ import random
 import json
 
 
+# keep track of the number of parametrizations (for various display uses)
+total_paramtrization_combinations = 0
+parametrization_counter = 0
+
+
 def parametrize_fixture_with_items(metafunc, fixture, itemsname):
     """Parametrize a fixture using the contents of variable `listname`
     from module scope. We want to distinguish between the cases where
@@ -124,8 +129,15 @@ def pytest_generate_tests(metafunc):
     if "run_dunerc" in metafunc.fixturenames:
         parametrize_fixture_with_items(metafunc, "run_dunerc", "dunerc_command_list")
 
+    # determine the number of different parametrizations
+    # (recall that this fixture is called once per pytest function in each integtest)
+    # (we only need to calculate this value once, so we check the initial value of zero)
+    global total_paramtrization_combinations
+    if total_paramtrization_combinations == 0:
+        total_paramtrization_combinations = len(metafunc.module.confgen_arguments) * len(metafunc.module.process_manager_choices)
+        if type(metafunc.module.dunerc_command_list) is dict:
+            total_paramtrization_combinations *= len(metafunc.module.dunerc_command_list)
 
-# 29-Dec-2025, KAB: added fixture to handle different process manager choices
 @pytest.fixture(scope="module")
 def process_manager_type(request, tmp_path_factory):
     yield request.param
@@ -142,11 +154,17 @@ def check_system_resources(request):
     skip_resource_checks = request.config.getoption("--skip-resource-checks")
     integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
 
+    # print out a couple of blank lines to help with formatting
+    if integtest_verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings:
+        print("", flush=True)
+        print("", flush=True)
+
     resval = getattr(request.module, "resource_validator", ResourceValidator())
 
     if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
         resval_debug_string = resval.get_debug_string()
         print(resval_debug_string)
+        print("", flush=True)
 
     if not resval.required_resources_are_present:
         resval_report_string = resval.get_required_resources_report()
@@ -198,9 +216,10 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     original_stdout = sys.stdout
     if integtest_verbosity_level < IntegtestVerbosityLevels.full_output:
         if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
-            print("\n----------------------------------------", flush=True)
+            print("----------------------------------------", flush=True)
             print("*** Messages related to configuration generation have been suppressed ***", flush=True)
             print("----------------------------------------", flush=True)
+            print("", flush=True)
         sys.stdout = catcher = StringIO()
 
     config_dir = tmp_path_factory.mktemp("config")
@@ -220,7 +239,7 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     object_databases = getattr(request.module, "object_databases", [])
     local_object_databases = copy_configuration(config_dir, object_databases)
 
-    print()  # Blank line
+    #print()  # Blank line
     if file_exists(integtest_conf):
         print(f"Integtest preconfigured config file: {integtest_conf}")
         consolidate_files(str(temp_config_db), integtest_conf, *local_object_databases)
@@ -404,6 +423,8 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     # restore the usual stdout behavior, if needed
     if integtest_verbosity_level < IntegtestVerbosityLevels.full_output:
         sys.stdout = original_stdout
+    else:
+        print("", flush=True)
     yield result
 
 
@@ -431,12 +452,20 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
 
     run_dir = tmp_path_factory.mktemp("run")
 
-    if integtest_verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings:
+    global total_paramtrization_combinations
+    if total_paramtrization_combinations > 1 and integtest_verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings:
+        global parametrization_counter
+        parametrization_counter += 1
+        if parametrization_counter > 1:
+            print("", flush=True)
+            print("", flush=True)
+
         current_test = os.environ.get("PYTEST_CURRENT_TEST")
         match_obj = re.search(r".*\[(.+)-run_.*rc.*\d].*", current_test)
         if match_obj:
             current_test = match_obj.group(1)
-        print(f"\n\n-> {current_test} <-")
+        print(f"-> {current_test} <-")
+
 
     # 15-Dec-2025, KAB: if one of our integtest bundle scripts has provided information
     # about itself in the execution environment of the currently running test, use that
@@ -735,6 +764,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     result.verbosity_helper = VerbosityHelper(integtest_verbosity_level)
     if number_of_lines_printed_to_the_console > 0:
         print("---------- DRUNC Session END ----------", flush=True)
+        print("", flush=True)
     elif integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_boot_terminate:
         print("", flush=True)
     yield result
