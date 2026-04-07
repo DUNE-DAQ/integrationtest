@@ -164,7 +164,6 @@ def check_system_resources(request):
     if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
         resval_debug_string = resval.get_debug_string()
         print(resval_debug_string)
-        print("", flush=True)
 
     if not resval.required_resources_are_present:
         resval_report_string = resval.get_required_resources_report()
@@ -213,6 +212,8 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
 
     # 26-Mar-2026, KAB: suppress output messages, if requested
     integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
+    if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+        print("", flush=True)
     original_stdout = sys.stdout
     if integtest_verbosity_level < IntegtestVerbosityLevels.full_output:
         if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
@@ -453,12 +454,14 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     run_dir = tmp_path_factory.mktemp("run")
 
     global total_paramtrization_combinations
-    if total_paramtrization_combinations > 1 and integtest_verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings:
+    if total_paramtrization_combinations > 1:
         global parametrization_counter
         parametrization_counter += 1
         if parametrization_counter > 1:
-            print("", flush=True)
-            print("", flush=True)
+            if integtest_verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings and \
+               integtest_verbosity_level < IntegtestVerbosityLevels.integtest_debug:
+                print("", flush=True)
+                print("", flush=True)
 
         current_test = os.environ.get("PYTEST_CURRENT_TEST")
         match_obj = re.search(r".*\[(.+)-run_.*rc.*\d].*", current_test)
