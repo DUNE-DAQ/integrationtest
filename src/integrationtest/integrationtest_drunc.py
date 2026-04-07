@@ -647,7 +647,8 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
 
     # print out each line of captured output, as well as add it to the string that we
     # pass back to the user, subject to the verbosity level that the user has requested
-    full_printout_watch_string = request.config.getoption("--dunerc-fullprint-watch-string")
+    tmp_string = request.config.getoption("--dunerc-fullprint-watch-string")
+    full_printout_watch_string = tmp_string.replace("_SPC_", " ")
     full_printout_activated = False
     number_of_lines_printed_to_the_console = 0
     full_output = ""
@@ -658,7 +659,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         # check for a user-specified string that triggers full printout
         # (this check needs to come first so that it sees the initial value of "should_be_printed")
         if should_be_printed == False and len(full_printout_watch_string) > 0:
-            if full_printout_watch_string in line:
+            if re.search(full_printout_watch_string, line):
                 if number_of_lines_printed_to_the_console == 0:
                     print("\n++++++++++ DRUNC Session BEGIN ++++++++++", flush=True)
                 else:
