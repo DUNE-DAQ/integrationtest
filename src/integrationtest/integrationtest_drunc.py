@@ -463,11 +463,12 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
                 print("", flush=True)
                 print("", flush=True)
 
-        current_test = os.environ.get("PYTEST_CURRENT_TEST")
-        match_obj = re.search(r".*\[(.+)-run_.*rc.*\d].*", current_test)
-        if match_obj:
-            current_test = match_obj.group(1)
-        print(f"-> {current_test} <-")
+        if integtest_verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings:
+            current_test = os.environ.get("PYTEST_CURRENT_TEST")
+            match_obj = re.search(r".*\[(.+)-run_.*rc.*\d].*", current_test)
+            if match_obj:
+                current_test = match_obj.group(1)
+            print(f"-> {current_test} <-")
 
 
     # 15-Dec-2025, KAB: if one of our integtest bundle scripts has provided information
