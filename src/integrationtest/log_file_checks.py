@@ -72,12 +72,14 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
             print(f"\N{POLICE CARS REVOLVING LIGHT} Failure: Required log message \"{substr}\" was not found in {log_file_name} \N{POLICE CARS REVOLVING LIGHT}")
             ok=False
         elif print_required_message_report:
-            print(f"\N{WHITE HEAVY CHECK MARK} Required log message \"{substr}\" occurred {count} times in {log_file_name}")
+            if verbosity_helper.compare_level(IntegtestVerbosityLevels.integtest_debug):
+                print(f"\N{WHITE HEAVY CHECK MARK} Required log message \"{substr}\" occurred {count} times in {log_file_name}")
         overall_required_message_count += count
         if count > 0:
             found_message_count += 1
     if overall_required_message_count > 0:
-        print(f"\N{WHITE HEAVY CHECK MARK} Note: required log messages were found in {overall_required_message_count} lines in {log_file_name} based on {found_message_count} required messages (of a total of {len(required_substring_list)} required messages).")
+        if verbosity_helper.compare_level(IntegtestVerbosityLevels.integtest_debug):
+            print(f"\N{WHITE HEAVY CHECK MARK} Note: required log messages were found in {overall_required_message_count} lines in {log_file_name} based on {found_message_count} required messages (of a total of {len(required_substring_list)} required messages).")
     return ok
 
 # 23-Nov-2021, KAB: added the ability for users to specify sets of excluded substrings, to
