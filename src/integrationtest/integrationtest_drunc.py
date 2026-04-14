@@ -558,15 +558,46 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     )  # Apparently need to flush before subprocess.run
     result = RunResult()
     time_before = time.time()
-    result.completed_process = subprocess.run(
+    # 25-Mar-2026, KAB: use subprocess.Popen to manage the run control session so that we can
+    # capture the console output and pass it back to the user for inspection and validation.
+    rc_process = subprocess.Popen(
         [dunerc]
         + dunerc_option_strings
-        + [process_manager_type]  # 29-Dec-2025, KAB: support for ProcMgr choices
+        + [process_manager_type]
         + [str(create_config_files.config_file)]
         + [str(create_config_files.config.config_session_name)]
         + [str(create_config_files.config.daq_session_name)]
         + command_list,
-        cwd=run_dir,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        cwd=run_dir
+    )
+
+    # print out each line of captured output, as well as add it to the string that we
+    # pass back to the user
+    full_output = ""
+    for line in rc_process.stdout:
+        print(line, end='', flush=True)
+        full_output += line
+
+    rc_process.communicate()
+    proc_returncode = rc_process.returncode
+
+    # construct a CompletedProcess instance to be passed back to the user. In this way,
+    # user code does not need to change in response to the change in this code from
+    # using subprocess.run() to subprocess.Popen().
+    result.completed_process = subprocess.CompletedProcess(
+        [dunerc]
+        + dunerc_option_strings
+        + [process_manager_type]
+        + [str(create_config_files.config_file)]
+        + [str(create_config_files.config.session)]
+        + [str(create_config_files.config.session_name if create_config_files.config.session_name else create_config_files.config.session)]
+        + command_list,
+        returncode=proc_returncode,
+        stdout=full_output
     )
     time_after = time.time()
 
