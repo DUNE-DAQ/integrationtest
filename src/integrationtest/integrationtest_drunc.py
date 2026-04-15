@@ -399,7 +399,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     each set of arguments in the list
 
     """
-    command_list = request.param
+    run_control_commands = request.param
 
     disable_connectivity_service = request.config.getoption(
         "--disable-connectivity-service"
@@ -560,14 +560,11 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     time_before = time.time()
     # 25-Mar-2026, KAB: use subprocess.Popen to manage the run control session so that we can
     # capture the console output and pass it back to the user for inspection and validation.
+    popen_command_list = [dunerc] + dunerc_option_strings + [process_manager_type] \
+        + [str(create_config_files.config_file)] + [str(create_config_files.config.config_session_name)] \
+        + [str(create_config_files.config.daq_session_name)] + run_control_commands
     rc_process = subprocess.Popen(
-        [dunerc]
-        + dunerc_option_strings
-        + [process_manager_type]
-        + [str(create_config_files.config_file)]
-        + [str(create_config_files.config.config_session_name)]
-        + [str(create_config_files.config.daq_session_name)]
-        + command_list,
+        popen_command_list,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -589,13 +586,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     # user code does not need to change in response to the change in this code from
     # using subprocess.run() to subprocess.Popen().
     result.completed_process = subprocess.CompletedProcess(
-        [dunerc]
-        + dunerc_option_strings
-        + [process_manager_type]
-        + [str(create_config_files.config_file)]
-        + [str(create_config_files.config.session)]
-        + [str(create_config_files.config.session_name if create_config_files.config.session_name else create_config_files.config.session)]
-        + command_list,
+        popen_command_list,
         returncode=proc_returncode,
         stdout=full_output
     )
@@ -621,8 +612,8 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     result.daq_session_name = create_config_files.config.daq_session_name
     # 27-Feb-2026, KAB: the nanorc_commands return value can be removed once
     # all integtests have been changed to use "dunerc".
-    result.nanorc_commands = command_list
-    result.dunerc_commands = command_list
+    result.nanorc_commands = run_control_commands
+    result.dunerc_commands = run_control_commands
     result.run_dir = run_dir
     result.config_dir = create_config_files.config_dir
     result.data_files = []
