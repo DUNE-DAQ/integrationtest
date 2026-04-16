@@ -46,11 +46,12 @@ class list_element_addition(config_substitution):
     additional_object_class: str = ""
     additional_object_id: str = ""
 
+
 @dataclass
 class drunc_config:
     op_env: str = "integtest"
-    session: str = "integtest"
-    session_name: str = None
+    config_session_name: str = "integtest"
+    daq_session_name: str = None
     dro_map_config: DROMap_config = field(default_factory=lambda: DROMap_config(1))
     frame_file: str = "asset://?checksum=370df564205290d27cab47e44ae4ca47"
     tpg_enabled: bool = False
