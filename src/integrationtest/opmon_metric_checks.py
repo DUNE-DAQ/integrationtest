@@ -1,4 +1,8 @@
 from opmonlib.info_file_collator import collate_info_files
+from integrationtest.verbosity_helper import (
+    IntegtestVerbosityLevels,
+    VerbosityHelper
+)
 
 # modify the print() statement default behavior so that it always flushes the output.
 import functools
@@ -19,7 +23,8 @@ def collate_opmon_data_from_files(json_files: list) -> dict:
 # So, the default behavior of this function is to check that there is at least one sample.
 # Returns False if a problem is encountered (e.g. parsing the collated JSON metric data)
 # or the sample count is out of the requested range.  True otherwise.
-def check_metric_sample_count(collated_opmon_data: dict, dict_key_list: list, min_count=1, max_count=-1):
+def check_metric_sample_count(collated_opmon_data: dict, dict_key_list: list, min_count=1, max_count=-1,
+                              verbosity_helper: VerbosityHelper = VerbosityHelper(99)):
     full_key_path = dict_key_list[0]
     for key_name in dict_key_list[1:]:
         full_key_path += "/" + str(key_name)
@@ -57,14 +62,16 @@ def check_metric_sample_count(collated_opmon_data: dict, dict_key_list: list, mi
             print(f"\N{POLICE CARS REVOLVING LIGHT} The number of metric samples for key \"{full_key_path}\" ({number_of_samples}) is outside the expected range ({min_count}..unbounded). \N{POLICE CARS REVOLVING LIGHT}")
             return False
         else:
-            print(f"\N{WHITE HEAVY CHECK MARK} The number of metric samples for key \"{full_key_path}\" ({number_of_samples}) is within the expected range ({min_count}..unbounded).")
+            verbosity_helper.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
+                                       f"\N{WHITE HEAVY CHECK MARK} The number of metric samples for key \"{full_key_path}\" ({number_of_samples}) is within the expected range ({min_count}..unbounded).")
             return True
     else:
         if number_of_samples < min_count or number_of_samples > max_count:
             print(f"\N{POLICE CARS REVOLVING LIGHT} The number of metric samples for key \"{full_key_path}\" ({number_of_samples}) is outside the expected range ({min_count}..{max_count}). \N{POLICE CARS REVOLVING LIGHT}")
             return False
         else:
-            print(f"\N{WHITE HEAVY CHECK MARK} The number of metric samples for key \"{full_key_path}\" ({number_of_samples}) is within the expected range ({min_count}..{max_count}).")
+            verbosity_helper.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
+                                       f"\N{WHITE HEAVY CHECK MARK} The number of metric samples for key \"{full_key_path}\" ({number_of_samples}) is within the expected range ({min_count}..{max_count}).")
             return True
 
 
@@ -77,7 +84,8 @@ def check_metric_sample_count(collated_opmon_data: dict, dict_key_list: list, mi
 # So, the default behavior of this function is to check that there is at least one non-zero metric value.
 # Returns False if a problem is encountered (e.g. parsing the collated JSON metric data)
 # or the value sum is out of the requested range.  True otherwise.
-def check_metric_value_sum(collated_opmon_data: dict, dict_key_list: list, min_value_sum=1, max_value_sum=-1):
+def check_metric_value_sum(collated_opmon_data: dict, dict_key_list: list, min_value_sum=1, max_value_sum=-1,
+                           verbosity_helper: VerbosityHelper = VerbosityHelper(99)):
     full_key_path = dict_key_list[0]
     for key_name in dict_key_list[1:]:
         full_key_path += "/" + str(key_name)
@@ -117,12 +125,14 @@ def check_metric_value_sum(collated_opmon_data: dict, dict_key_list: list, min_v
             print(f"\N{POLICE CARS REVOLVING LIGHT} The sum of metric values for key \"{full_key_path}\" ({value_sum}) is outside the expected range ({min_value_sum}..unbounded). \N{POLICE CARS REVOLVING LIGHT}")
             return False
         else:
-            print(f"\N{WHITE HEAVY CHECK MARK} The sum of metric values for key \"{full_key_path}\" ({value_sum}) is within the expected range ({min_value_sum}..unbounded).")
+            verbosity_helper.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
+                                       f"\N{WHITE HEAVY CHECK MARK} The sum of metric values for key \"{full_key_path}\" ({value_sum}) is within the expected range ({min_value_sum}..unbounded).")
             return True
     else:
         if value_sum < min_value_sum or value_sum > max_value_sum:
             print(f"\N{POLICE CARS REVOLVING LIGHT} The sum of metric values for key \"{full_key_path}\" ({value_sum}) is outside the expected range ({min_value_sum}..{max_value_sum}). \N{POLICE CARS REVOLVING LIGHT}")
             return False
         else:
-            print(f"\N{WHITE HEAVY CHECK MARK} The sum of metric values for key \"{full_key_path}\" ({value_sum}) is within the expected range ({min_value_sum}..{max_value_sum}).")
+            verbosity_helper.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
+                                       f"\N{WHITE HEAVY CHECK MARK} The sum of metric values for key \"{full_key_path}\" ({value_sum}) is within the expected range ({min_value_sum}..{max_value_sum}).")
             return True

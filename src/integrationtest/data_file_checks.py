@@ -19,23 +19,29 @@ from integrationtest.data_file_check_utilities import (
     check_multi_TR_type,
     record_ordinal_string_all_tests,
     trigger_functions_checks
-    )
+)
+from integrationtest.verbosity_helper import (
+    IntegtestVerbosityLevels,
+    VerbosityHelper
+)
 
 # 21-May-2025, KAB: tweak the print() statement default behavior so that it always flushes the output.
 import functools
 print = functools.partial(print, flush=True)
 
 class DataFile:
-    def __init__(self, filename):
+    def __init__(self, filename, verbosity_helper: VerbosityHelper = VerbosityHelper(99)):
         self.h5file=h5py.File(filename, 'r')
         self.events=self.h5file.keys()
         self.name=str(filename)
+        self.vrb_hlpr = verbosity_helper
 
 def sanity_check(datafile):
     "Very basic sanity checks on file"
     passed=True
     base_filename = os.path.basename(datafile.h5file.filename)
-    print("") # Clear potential dot from pytest
+    if datafile.vrb_hlpr.compare_level(IntegtestVerbosityLevels.drunc_transitions):
+        print("") # Clear potential dot from pytest
 
     # execute unit tests for local function(s)
     # (this is probably not the best place for these...)
@@ -72,7 +78,8 @@ def sanity_check(datafile):
             passed=False
 
     if passed:
-        print(f"\N{WHITE HEAVY CHECK MARK} Sanity-check passed for file {base_filename}")
+        datafile.vrb_hlpr.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
+                                    f"\N{WHITE HEAVY CHECK MARK} Sanity-check passed for file {base_filename}")
     else:
         print(f"\N{POLICE CARS REVOLVING LIGHT} One or more sanity-checks failed for file {base_filename} \N{POLICE CARS REVOLVING LIGHT}")
     return passed
@@ -86,7 +93,8 @@ def check_file_attributes(datafile, was_test_run="true"):
     passed=True
     base_filename = os.path.basename(datafile.h5file.filename)
     if "tp" in base_filename:
-        print("") # Clear potential dot from pytest
+        if datafile.vrb_hlpr.compare_level(IntegtestVerbosityLevels.drunc_transitions):
+            print("") # Clear potential dot from pytest
     expected_attribute_names = ["application_name", "closing_timestamp", "creation_timestamp", "file_index", "filelayout_params", "filelayout_version", "offline_data_stream", "operational_environment", "record_type", "recorded_size", "run_number", "run_was_for_test_purposes", "source_id_geo_id_map"]
     for expected_attr_name in expected_attribute_names:
         if expected_attr_name not in datafile.h5file.attrs.keys():
@@ -141,9 +149,10 @@ def check_file_attributes(datafile, was_test_run="true"):
             attr_value = datafile.h5file.attrs.get(expected_attr_name)
             if attr_value != was_test_run:
                 passed=False
-                print(f"\N{POLICE CARS REVOLVING LIGHT} The value in HDF5 File Attribute '{expected_attr_name}' ({attr_value}) does not match the expected value ({was_test_run}) \N{POLICE CARS REVOLVING LIGHT}")
+                print(f"\N{POLICE CARS REVOLVING LIGHT} The value in HDF5 File Attribute '{expected_attr_name}' ({attr_value}) does not match the expected value ({was_test_run}) in file {base_filename} \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"\N{WHITE HEAVY CHECK MARK} All Attribute tests passed")
+        datafile.vrb_hlpr.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
+                                    f"\N{WHITE HEAVY CHECK MARK} All Attribute tests passed for file {base_filename}")
     return passed
 
 def check_event_count(datafile, expected_value, tolerance):
@@ -156,7 +165,8 @@ def check_event_count(datafile, expected_value, tolerance):
         passed=False
         print(f"\N{POLICE CARS REVOLVING LIGHT} Record count {event_count} is outside the tolerance of {tolerance} from an expected value of {expected_value} \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"\N{WHITE HEAVY CHECK MARK} Record count {event_count} is within a tolerance of {tolerance} from an expected value of {expected_value}")
+        datafile.vrb_hlpr.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
+                                    f"\N{WHITE HEAVY CHECK MARK} Record count {event_count} is within a tolerance of {tolerance} from an expected value of {expected_value}")
     return passed
 
 # 18-Aug-2021, KAB: General-purposed test for fragment count.  The idea behind this test
@@ -207,9 +217,11 @@ def check_fragment_count(datafile, params):
         min_count_list.sort()
         max_count_list.sort()
         if len(min_count_list) > 1 or len(max_count_list) > 1 or min_count_list[0] != max_count_list[0]:
-            print(f"\N{WHITE HEAVY CHECK MARK} {params['fragment_type_description']} fragment count in range {min_count_list} to {max_count_list} confirmed in all {len(records)} records")
+            datafile.vrb_hlpr.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
+                                        f"\N{WHITE HEAVY CHECK MARK} {params['fragment_type_description']} fragment count in range {min_count_list} to {max_count_list} confirmed in all {len(records)} records")
         else:
-            print(f"\N{WHITE HEAVY CHECK MARK} {params['fragment_type_description']} fragment count of {min_count_list[0]} confirmed in all {len(records)} records")
+            datafile.vrb_hlpr.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
+                                        f"\N{WHITE HEAVY CHECK MARK} {params['fragment_type_description']} fragment count of {min_count_list[0]} confirmed in all {len(records)} records")
     return passed
 
 # 18-Aug-2021, KAB: general-purposed test for fragment sizes.  The idea behind this test
@@ -264,7 +276,8 @@ def check_fragment_sizes(datafile, params):
     if passed:
         min_size_list.sort()
         max_size_list.sort()
-        print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have sizes between {min_size_list[0] if len(min_size_list) == 1 else min_size_list} and {max_size_list[0] if len(max_size_list) == 1 else max_size_list}")
+        datafile.vrb_hlpr.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
+                                    f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have sizes between {min_size_list[0] if len(min_size_list) == 1 else min_size_list} and {max_size_list[0] if len(max_size_list) == 1 else max_size_list}")
     return passed
 
 # 07-Jan-2025, ELF: test for fragment error flags.  The idea behind this test
@@ -314,7 +327,8 @@ def check_fragment_error_flags(datafile, params):
                 print(f" \N{POLICE CARS REVOLVING LIGHT} {params['fragment_type_description']} fragment for SrcID {src_id.to_string()} in record {rec} has the following unmasked error flags set: {get_set_status_bit_names(status_bits & status_bitmask)} \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
         error_mask_list.sort()
-        print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have no error flags set (after applying bitmasks)")
+        datafile.vrb_hlpr.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
+                                    f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have no error flags set (after applying bitmasks)")
     return passed
 
 def check_n_unique_sids(datafile, expected_sids_tp, expected_sids_ta, expected_sids_tc):
@@ -404,10 +418,10 @@ def check_tr_type_multiplicity(datafile, multi_required):
 
     return True
 
-def trigger_sanity_checks():
+def trigger_sanity_checks(verbosity_helper: VerbosityHelper = VerbosityHelper(99)):
     all_ok = trigger_functions_checks()
     if all_ok:
-        print(f"\n\N{WHITE HEAVY CHECK MARK} All trigger sanity checks passed successfully.")
+        verbosity_helper.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
+                                   f"\n\N{WHITE HEAVY CHECK MARK} All trigger sanity checks passed successfully.")
     else:
         print(f"\n\N{POLICE CARS REVOLVING LIGHT} Some trigger sanity checks FAILED. Please review the errors above.")
-

@@ -20,8 +20,6 @@
 # resource_validator.cpu_count_needs(32, 64)
 # resource_validator.free_memory_needs(28)
 # # set other minimum values, if desired
-# resval_debug_string = resource_validator.get_debug_string()
-# print(f"{resval_debug_string}")
 # # The check_system_resources fixture will check that the system has the required resources
 
 import os
@@ -58,7 +56,7 @@ class ResourceValidator:
     # method to specify the number of CPUs that is needed
     def cpu_count_needs(self, required_count=-1, recommended_count=-1):
         cpu_count = os.cpu_count()
-        self.debug_string += f"\nDEBUG: CPU count is {cpu_count}"
+        self.debug_string += f"DEBUG: CPU count is {cpu_count}"
         if required_count >= 0:
             self.debug_string += f", required number is {required_count}"
         if recommended_count >= 0:

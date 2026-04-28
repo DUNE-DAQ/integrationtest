@@ -42,6 +42,20 @@ def pytest_addoption(parser):
         help="The run control process manager type to use for this test, e.g. ssh-standalone",
         required=False
     )
+    parser.addoption(
+        "--integtest-verbosity",
+        action="store",
+        default=3,
+        help="The volume of messages that are printed out by the integration test infrastructure",
+        required=False
+    )
+    parser.addoption(
+        "--dunerc-fullprint-watch-string",
+        action="store",
+        default="",
+        help="A phrase that, if found in run control messages, will trigger the printout of all RC messages",
+        required=False
+    )
 
 def pytest_configure(config):
     for opt in ("--dunerc-path",):
