@@ -20,6 +20,8 @@ from integrationtest.data_classes import (
     relationship_substitution,
     list_element_substitution,
     list_element_addition,
+    integtest_params_for_generated_dunedaq_config,
+    integtest_params_for_predefined_dunedaq_config,
 )
 from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate import (
@@ -202,10 +204,22 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     """
     dummy_resource_check = check_system_resources
     drunc_config = request.param
+    if isinstance(drunc_config, integtest_params_for_generated_dunedaq_config):
+        print("*** drunc_config is of type integtest_params_for_generated_dunedaq_config")
+    if isinstance(drunc_config, integtest_params_for_predefined_dunedaq_config):
+        print("*** drunc_config is of type integtest_params_for_predefined_dunedaq_config")
+
+    if not isinstance(drunc_config, integtest_params_for_generated_dunedaq_config) \
+       and not isinstance(drunc_config, integtest_params_for_predefined_dunedaq_config):
+        fail_msg = f"The integtest configuration object has an invalid type: {type(drunc_config)}"
+        pytest.fail(fail_msg, pytrace=False)
 
     disable_connectivity_service = request.config.getoption(
         "--disable-connectivity-service"
     )
+    if disable_connectivity_service and \
+       isinstance(drunc_config, integtest_params_for_generated_dunedaq_config):
+        drunc_config.connsvc_control = None
     skip_resource_checks = request.config.getoption(
         "--skip-resource-checks"
     )
@@ -309,6 +323,9 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
             trmon_app=drunc_config.trmon_app_enabled,
         )
 
+        drunc_starts_connsvc = hasattr(drunc_config, "connsvc_control") \
+            and drunc_config.connsvc_control is not None \
+            and "drunc" in drunc_config.connsvc_control
         generate_session(
             oksfile=str(temp_config_db),
             include=local_object_databases
@@ -316,7 +333,7 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
             + ([str(hsi_db)] if drunc_config.fake_hsi_enabled else []),
             session_name=drunc_config.config_session_name,
             op_env=drunc_config.op_env,
-            connectivity_service_is_infrastructure_app=drunc_config.drunc_connsvc,
+            connectivity_service_is_infrastructure_app=drunc_starts_connsvc,
             disable_connectivity_service=disable_connectivity_service,
         )
 
@@ -375,15 +392,8 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
 
     db.commit()
 
-    # For preconfigured tests, disable starting the ConnSvc if the ConnectionService is an ifapp or unused
-    sessionobj = db.get_dal(class_name="Session", uid=drunc_config.config_session_name)
-    if sessionobj.connectivity_service is None:
-        drunc_config.drunc_connsvc = True
-    for if_app in sessionobj.infrastructure_applications:
-        if if_app.className() == "ConnectionService":
-            drunc_config.drunc_connsvc = True
-
     # 30-Dec-2024, KAB: build up the list of directories used for writing raw and TPStream data
+    sessionobj = db.get_dal(class_name="Session", uid=drunc_config.config_session_name)
     rawdata_dirs = []
     tpstream_dirs = []
     trmon_dirs = []
@@ -454,6 +464,9 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     disable_connectivity_service = request.config.getoption(
         "--disable-connectivity-service"
     )
+    if disable_connectivity_service and \
+       isinstance(drunc_config, integtest_params_for_generated_dunedaq_config):
+        create_config_files.config.connsvc_control = None
     integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
 
     run_dir = tmp_path_factory.mktemp("run")
@@ -507,9 +520,9 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
 
     connsvc_obj = None
     if (
-        not disable_connectivity_service
-        and not create_config_files.config.drunc_connsvc
-        and create_config_files.config.connsvc_port is not None
+        hasattr(create_config_files.config, "connsvc_control")
+        and create_config_files.config.connsvc_control is not None
+        and "integ" in create_config_files.config.connsvc_control
     ):
         # start connsvc
         if integtest_verbosity_level >= IntegtestVerbosityLevels.full_output:
@@ -518,9 +531,10 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
             )
 
         connsvc_env = os.environ.copy()
-        connsvc_env["CONNECTION_FLASK_DEBUG"] = str(
-            create_config_files.config.connsvc_debug_level
-        )
+        if create_config_files.config.connsvc_debug_level is not None:
+            connsvc_env["CONNECTION_FLASK_DEBUG"] = str(
+                create_config_files.config.connsvc_debug_level
+            )
 
         connsvc_log = open(
             run_dir

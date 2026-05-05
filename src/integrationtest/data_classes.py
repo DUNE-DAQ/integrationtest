@@ -65,9 +65,19 @@ class drunc_config:
     object_databases: list[str] = field(default_factory=list)
     config_substitutions: list[config_substitution] = field(default_factory=list)
     attempt_cleanup: bool = False
-    drunc_connsvc: bool = False
+    # parameter(s) related to the startup of the Connectivity Service
+    connsvc_debug_level: int = None
+
+@dataclass
+class integtest_params_for_generated_dunedaq_config(drunc_config):
+    # parameter(s) related to the startup of the Connectivity Service
+    connsvc_control: str = "integrationtest"  # vs "drunc" or "none"/None
     connsvc_port: int = 0
-    connsvc_debug_level: int = 0
+
+@dataclass
+class integtest_params_for_predefined_dunedaq_config(drunc_config):
+    # parameter(s) related to the startup of the Connectivity Service
+    connsvc_port: int = None
 
 
 @dataclass
