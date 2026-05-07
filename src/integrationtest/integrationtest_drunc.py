@@ -20,6 +20,7 @@ from integrationtest.data_classes import (
     relationship_substitution,
     list_element_substitution,
     list_element_addition,
+    ConnSvcControl,
     integtest_params_for_generated_dunedaq_config,
     integtest_params_for_predefined_dunedaq_config,
 )
@@ -214,15 +215,12 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
         fail_msg = f"The integtest configuration object has an invalid type: {type(drunc_config)}"
         pytest.fail(fail_msg, pytrace=False)
 
-    disable_connectivity_service = request.config.getoption(
-        "--disable-connectivity-service"
-    )
-    if disable_connectivity_service and \
+    no_integtest_connsvc = request.config.getoption("--no-integtest-connsvc")
+    skip_resource_checks = request.config.getoption("--skip-resource-checks")
+
+    if no_integtest_connsvc and \
        isinstance(drunc_config, integtest_params_for_generated_dunedaq_config):
-        drunc_config.connsvc_control = None
-    skip_resource_checks = request.config.getoption(
-        "--skip-resource-checks"
-    )
+        drunc_config.connsvc_control = ConnSvcControl.NONE
 
     # 06-Mar-2026, KAB: if the DAQ session name has not explicitly been set by the
     # user, set it here so that we can make use of it from this point onward.
@@ -243,27 +241,27 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
         sys.stdout = catcher = StringIO()
 
     config_dir = tmp_path_factory.mktemp("config")
-    boot_file = config_dir / "boot.json"
-    configfile = config_dir / "config.json"
-    dro_map_file = config_dir / "ReadoutMap.data.xml"
-    readout_db = config_dir / "readout-segment.data.xml"
-    dataflow_db = config_dir / "df-segment.data.xml"
-    trigger_db = config_dir / "trg-segment.data.xml"
-    hsi_db = config_dir / "hsi-segment.data.xml"
     config_db = config_dir / "integtest-session-resolved.data.xml"
     temp_config_db = config_dir / "integtest-session.data.xml"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
 
-    integtest_conf = drunc_config.config_db
-
-    object_databases = getattr(request.module, "object_databases", [])
-    local_object_databases = copy_configuration(config_dir, object_databases)
-
-    #print()  # Blank line
-    if file_exists(integtest_conf):
-        print(f"Integtest preconfigured config file: {integtest_conf}")
-        consolidate_files(str(temp_config_db), integtest_conf, *local_object_databases)
+    if isinstance(drunc_config, integtest_params_for_predefined_dunedaq_config):
+        integtest_conf = drunc_config.predefined_config_db
+        if file_exists(integtest_conf):
+            print(f"Integtest preconfigured config file: {integtest_conf}")
+            consolidate_files(str(temp_config_db), integtest_conf)
+        else:
+            fail_msg = f"The file containing the predefined dunedaq configuration \"{integtest_conf}\" could not be found."
+            pytest.fail(fail_msg, pytrace=False)
     else:
+        dro_map_file = config_dir / "ReadoutMap.data.xml"
+        readout_db = config_dir / "readout-segment.data.xml"
+        dataflow_db = config_dir / "df-segment.data.xml"
+        trigger_db = config_dir / "trg-segment.data.xml"
+        hsi_db = config_dir / "hsi-segment.data.xml"
+
+        local_object_databases = copy_configuration(config_dir, drunc_config.object_databases)
+
         if not drunc_config.use_fakedataprod:
             if not file_exists(dro_map_file):
                 dro_map_config = drunc_config.dro_map_config
@@ -323,9 +321,7 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
             trmon_app=drunc_config.trmon_app_enabled,
         )
 
-        drunc_starts_connsvc = hasattr(drunc_config, "connsvc_control") \
-            and drunc_config.connsvc_control is not None \
-            and "drunc" in drunc_config.connsvc_control
+        runcontrol_starts_connsvc = drunc_config.connsvc_control == ConnSvcControl.RUNCONTROL
         generate_session(
             oksfile=str(temp_config_db),
             include=local_object_databases
@@ -333,8 +329,8 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
             + ([str(hsi_db)] if drunc_config.fake_hsi_enabled else []),
             session_name=drunc_config.config_session_name,
             op_env=drunc_config.op_env,
-            connectivity_service_is_infrastructure_app=drunc_starts_connsvc,
-            disable_connectivity_service=disable_connectivity_service,
+            connectivity_service_is_infrastructure_app=runcontrol_starts_connsvc,
+            disable_connectivity_service=no_integtest_connsvc,
         )
 
     consolidate_db(str(temp_config_db), str(config_db))
@@ -461,13 +457,12 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     """
     run_control_commands = request.param
 
-    disable_connectivity_service = request.config.getoption(
-        "--disable-connectivity-service"
-    )
-    if disable_connectivity_service and \
-       isinstance(drunc_config, integtest_params_for_generated_dunedaq_config):
-        create_config_files.config.connsvc_control = None
+    no_integtest_connsvc = request.config.getoption("--no-integtest-connsvc")
     integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
+
+    if no_integtest_connsvc and \
+       isinstance(drunc_config, integtest_params_for_generated_dunedaq_config):
+        create_config_files.config.connsvc_control = ConnSvcControl.NONE
 
     run_dir = tmp_path_factory.mktemp("run")
 
@@ -521,8 +516,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     connsvc_obj = None
     if (
         hasattr(create_config_files.config, "connsvc_control")
-        and create_config_files.config.connsvc_control is not None
-        and "integ" in create_config_files.config.connsvc_control
+        and create_config_files.config.connsvc_control == ConnSvcControl.INTEGRATIONTEST
     ):
         # start connsvc
         if integtest_verbosity_level >= IntegtestVerbosityLevels.full_output:

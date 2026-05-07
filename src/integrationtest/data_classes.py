@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-
+from enum import Enum
 
 @dataclass
 class DROMap_config:
@@ -47,42 +47,67 @@ class list_element_addition(config_substitution):
     additional_object_id: str = ""
 
 
+class ConnSvcControl(Enum):
+    INTEGRATIONTEST = "integrationtest"
+    RUNCONTROL = "runcontrol"
+    NONE = "none"
+
 @dataclass
-class drunc_config:
+class integtest_param_class:
+    # daq_session_name can be specified; it is automatically populated if not specified
+    daq_session_name: str = None
+
+    # config substitutions can be made to both generated and predefined dunedaq configs
+    config_substitutions: list[config_substitution] = field(default_factory=list)
+
+    # the cleanup of leftover RunControl or ConnSvc processes is available to all types of integtests
+    attempt_cleanup: bool = False
+
+    # parameter(s) related to the startup of the Connectivity Service
+    connsvc_port: int = 0
+    connsvc_debug_level: int = None
+
+@dataclass
+class integtest_params_for_generated_dunedaq_config(integtest_param_class):
+    # *** Parameters that are needed for both generated and predefined configs,
+    # *** and benefit from different default values
+    # - for generated configs, these two params do not need to have specific values
     op_env: str = "integtest"
     config_session_name: str = "integtest"
-    daq_session_name: str = None
+
+    # *** Parameters that are only needed for generated dunedaq configurations
+    # - databases that are needed to support config generation
+    object_databases: list[str] = field(default_factory=list)
+    # - parameters that control what the generators produce
     dro_map_config: DROMap_config = field(default_factory=lambda: DROMap_config(1))
-    frame_file: str = "asset://?checksum=370df564205290d27cab47e44ae4ca47"
+    frame_file: str = "asset://?checksum=370df564205290d27cab47e44ae4ca47"  # wib_link_67.bin
     tpg_enabled: bool = False
     trmon_app_enabled: bool = False
     fake_hsi_enabled: bool = False
     use_fakedataprod: bool = False
     fake_data_fragment_type: str = ""
-    config_db: str = ""
     n_df_apps: int = 1
     n_data_writers: int = 1
-    object_databases: list[str] = field(default_factory=list)
-    config_substitutions: list[config_substitution] = field(default_factory=list)
-    attempt_cleanup: bool = False
-    # parameter(s) related to the startup of the Connectivity Service
-    connsvc_debug_level: int = None
+    # - control over how the Connectivity Service is started
+    connsvc_control: ConnSvcControl = ConnSvcControl.INTEGRATIONTEST
 
 @dataclass
-class integtest_params_for_generated_dunedaq_config(drunc_config):
-    # parameter(s) related to the startup of the Connectivity Service
-    connsvc_control: str = "integrationtest"  # vs "drunc" or "none"/None
-    connsvc_port: int = 0
+class integtest_params_for_predefined_dunedaq_config(integtest_param_class):
+    # *** Parameters that are needed for both generated and predefined configs,
+    # *** and benefit from different default values
+    # - for a predefined config, the following two parameters must contain values that
+    #   match what is in that config; they are likely reassigned in integtest files
+    op_env: str = "test"
+    config_session_name: str = "local-1x1-config"
 
-@dataclass
-class integtest_params_for_predefined_dunedaq_config(drunc_config):
-    # parameter(s) related to the startup of the Connectivity Service
-    connsvc_port: int = None
+    # *** Parameters that are unique to predefined dunedaq configurations
+    # - the predefined configuration that should be used
+    predefined_config_db: str = ""
 
 
 @dataclass
 class CreateConfigResult:
-    config: drunc_config
+    config: integtest_param_class
     config_dir: str
     config_file: str
     log_file: str
