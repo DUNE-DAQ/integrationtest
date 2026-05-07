@@ -53,7 +53,7 @@ class ConnSvcControl(Enum):
     NONE = "none"
 
 @dataclass
-class integtest_param_class:
+class integtest_param_base_class:
     # daq_session_name can be specified; it is automatically populated if not specified
     daq_session_name: str = None
 
@@ -68,7 +68,7 @@ class integtest_param_class:
     connsvc_debug_level: int = None
 
 @dataclass
-class integtest_params_for_generated_dunedaq_config(integtest_param_class):
+class integtest_params_for_generated_dunedaq_config(integtest_param_base_class):
     # *** Parameters that are needed for both generated and predefined configs,
     # *** and benefit from different default values
     # - for generated configs, these two params do not need to have specific values
@@ -92,7 +92,7 @@ class integtest_params_for_generated_dunedaq_config(integtest_param_class):
     connsvc_control: ConnSvcControl = ConnSvcControl.INTEGRATIONTEST
 
 @dataclass
-class integtest_params_for_predefined_dunedaq_config(integtest_param_class):
+class integtest_params_for_predefined_dunedaq_config(integtest_param_base_class):
     # *** Parameters that are needed for both generated and predefined configs,
     # *** and benefit from different default values
     # - for a predefined config, the following two parameters must contain values that
@@ -107,7 +107,7 @@ class integtest_params_for_predefined_dunedaq_config(integtest_param_class):
 
 @dataclass
 class CreateConfigResult:
-    config: integtest_param_class
+    config: integtest_param_base_class
     config_dir: str
     config_file: str
     log_file: str

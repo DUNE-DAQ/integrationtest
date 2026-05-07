@@ -461,7 +461,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
 
     if no_integtest_connsvc and \
-       isinstance(drunc_config, integtest_params_for_generated_dunedaq_config):
+       isinstance(create_config_files.config, integtest_params_for_generated_dunedaq_config):
         create_config_files.config.connsvc_control = ConnSvcControl.NONE
 
     run_dir = tmp_path_factory.mktemp("run")
@@ -513,9 +513,10 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         # if the expected env var is not set, we simply don't create the bundle info file
         pass
 
+    # start the Connectivity Service, if requested (only supported for generated dune-daq configs, for now)
     connsvc_obj = None
     if (
-        hasattr(create_config_files.config, "connsvc_control")
+        isinstance(create_config_files.config, integtest_params_for_generated_dunedaq_config)
         and create_config_files.config.connsvc_control == ConnSvcControl.INTEGRATIONTEST
     ):
         # start connsvc
@@ -541,6 +542,10 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
             stderr=connsvc_log,
             env=connsvc_env,
         )
+
+    elif create_config_files.config.connsvc_debug_level is not None:
+        set_session_env_var(str(create_config_files.config_file), create_config_files.config.config_session_name,
+                            "CONNECTION_FLASK_DEBUG", create_config_files.config.connsvc_debug_level, overwrite=True)
 
     dunerc = request.config.getoption("--dunerc-path")
     if dunerc is None:
