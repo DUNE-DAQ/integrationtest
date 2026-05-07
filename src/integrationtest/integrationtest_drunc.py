@@ -205,11 +205,11 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     """
     dummy_resource_check = check_system_resources
     drunc_config = request.param
-    if isinstance(drunc_config, integtest_params_for_generated_dunedaq_config):
-        print("*** drunc_config is of type integtest_params_for_generated_dunedaq_config")
-    if isinstance(drunc_config, integtest_params_for_predefined_dunedaq_config):
-        print("*** drunc_config is of type integtest_params_for_predefined_dunedaq_config")
 
+    #if isinstance(drunc_config, integtest_params_for_generated_dunedaq_config):
+    #    print("*** drunc_config is of type integtest_params_for_generated_dunedaq_config")
+    #if isinstance(drunc_config, integtest_params_for_predefined_dunedaq_config):
+    #    print("*** drunc_config is of type integtest_params_for_predefined_dunedaq_config")
     if not isinstance(drunc_config, integtest_params_for_generated_dunedaq_config) \
        and not isinstance(drunc_config, integtest_params_for_predefined_dunedaq_config):
         fail_msg = f"The integtest configuration object has an invalid type: {type(drunc_config)}"
