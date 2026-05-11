@@ -678,7 +678,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
 
         # check for errors and warnings for all verbosity levels
         if should_be_printed == False:
-            if ("error" in line.lower() and not " In error " in line) or "warning" in line.lower():
+            if ("error" in line.lower() and (not "In error" in line and not "Endpoint" in line)) or "warning" in line.lower():
                 should_be_printed = True
 
         # check for basic transition messages, if that level of verbosity is requested
