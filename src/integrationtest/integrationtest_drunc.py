@@ -20,6 +20,9 @@ from integrationtest.data_classes import (
     relationship_substitution,
     list_element_substitution,
     list_element_addition,
+    ConnSvcControl,
+    integtest_params_for_generated_dunedaq_config,
+    integtest_params_for_predefined_dunedaq_config,
 )
 from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate import (
@@ -201,19 +204,28 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
 
     """
     dummy_resource_check = check_system_resources
-    drunc_config = request.param
+    integtest_params = request.param
 
-    disable_connectivity_service = request.config.getoption(
-        "--disable-connectivity-service"
-    )
-    skip_resource_checks = request.config.getoption(
-        "--skip-resource-checks"
-    )
+    #if isinstance(integtest_params, integtest_params_for_generated_dunedaq_config):
+    #    print("*** integtest_params is of type integtest_params_for_generated_dunedaq_config")
+    #if isinstance(integtest_params, integtest_params_for_predefined_dunedaq_config):
+    #    print("*** integtest_params is of type integtest_params_for_predefined_dunedaq_config")
+    if not isinstance(integtest_params, integtest_params_for_generated_dunedaq_config) \
+       and not isinstance(integtest_params, integtest_params_for_predefined_dunedaq_config):
+        fail_msg = f"The integtest configuration object has an invalid type: {type(integtest_params)}"
+        pytest.fail(fail_msg, pytrace=False)
+
+    no_integtest_connsvc = request.config.getoption("--no-integtest-connsvc")
+    skip_resource_checks = request.config.getoption("--skip-resource-checks")
+
+    if no_integtest_connsvc and \
+       isinstance(integtest_params, integtest_params_for_generated_dunedaq_config):
+        integtest_params.connsvc_control = ConnSvcControl.NONE
 
     # 06-Mar-2026, KAB: if the DAQ session name has not explicitly been set by the
     # user, set it here so that we can make use of it from this point onward.
-    if not drunc_config.daq_session_name:
-        drunc_config.daq_session_name = drunc_config.config_session_name
+    if not integtest_params.daq_session_name:
+        integtest_params.daq_session_name = integtest_params.config_session_name
 
     # 26-Mar-2026, KAB: suppress output messages, if requested
     integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
@@ -229,30 +241,30 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
         sys.stdout = catcher = StringIO()
 
     config_dir = tmp_path_factory.mktemp("config")
-    boot_file = config_dir / "boot.json"
-    configfile = config_dir / "config.json"
-    dro_map_file = config_dir / "ReadoutMap.data.xml"
-    readout_db = config_dir / "readout-segment.data.xml"
-    dataflow_db = config_dir / "df-segment.data.xml"
-    trigger_db = config_dir / "trg-segment.data.xml"
-    hsi_db = config_dir / "hsi-segment.data.xml"
     config_db = config_dir / "integtest-session-resolved.data.xml"
     temp_config_db = config_dir / "integtest-session.data.xml"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
 
-    integtest_conf = drunc_config.config_db
-
-    object_databases = getattr(request.module, "object_databases", [])
-    local_object_databases = copy_configuration(config_dir, object_databases)
-
-    #print()  # Blank line
-    if file_exists(integtest_conf):
-        print(f"Integtest preconfigured config file: {integtest_conf}")
-        consolidate_files(str(temp_config_db), integtest_conf, *local_object_databases)
+    if isinstance(integtest_params, integtest_params_for_predefined_dunedaq_config):
+        integtest_conf = integtest_params.predefined_config_db
+        if file_exists(integtest_conf):
+            print(f"Integtest preconfigured config file: {integtest_conf}")
+            consolidate_files(str(temp_config_db), integtest_conf)
+        else:
+            fail_msg = f"The file containing the predefined dunedaq configuration \"{integtest_conf}\" could not be found."
+            pytest.fail(fail_msg, pytrace=False)
     else:
-        if not drunc_config.use_fakedataprod:
+        dro_map_file = config_dir / "ReadoutMap.data.xml"
+        readout_db = config_dir / "readout-segment.data.xml"
+        dataflow_db = config_dir / "df-segment.data.xml"
+        trigger_db = config_dir / "trg-segment.data.xml"
+        hsi_db = config_dir / "hsi-segment.data.xml"
+
+        local_object_databases = copy_configuration(config_dir, integtest_params.object_databases)
+
+        if not integtest_params.use_fakedataprod:
             if not file_exists(dro_map_file):
-                dro_map_config = drunc_config.dro_map_config
+                dro_map_config = integtest_params.dro_map_config
                 if dro_map_config != None:
                     generate_hwmap(
                         str(dro_map_file),
@@ -272,28 +284,28 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
                     oksfile=str(readout_db),
                     include=local_object_databases,
                     generate_segment=True,
-                    emulated_file_name=drunc_config.frame_file,
-                    tpg_enabled=drunc_config.tpg_enabled,
+                    emulated_file_name=integtest_params.frame_file,
+                    tpg_enabled=integtest_params.tpg_enabled,
                 )
         elif not file_exists(readout_db):
             generate_fakedata(
                 oksfile=str(readout_db),
                 include=local_object_databases,
                 generate_segment=True,
-                n_streams=drunc_config.dro_map_config.n_streams,
-                n_apps=drunc_config.dro_map_config.n_apps,
-                det_id=drunc_config.dro_map_config.det_id,
-                fragment_type=drunc_config.fake_data_fragment_type,
+                n_streams=integtest_params.dro_map_config.n_streams,
+                n_apps=integtest_params.dro_map_config.n_apps,
+                det_id=integtest_params.dro_map_config.det_id,
+                fragment_type=integtest_params.fake_data_fragment_type,
             )
 
         generate_trigger(
             oksfile=str(trigger_db),
             include=local_object_databases,
             generate_segment=True,
-            tpg_enabled=drunc_config.tpg_enabled,
-            hsi_enabled=drunc_config.fake_hsi_enabled,
+            tpg_enabled=integtest_params.tpg_enabled,
+            hsi_enabled=integtest_params.fake_hsi_enabled,
         )
-        if drunc_config.fake_hsi_enabled:
+        if integtest_params.fake_hsi_enabled:
             generate_hsi(
                 oksfile=str(hsi_db),
                 include=local_object_databases,
@@ -302,39 +314,40 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
         generate_dataflow(
             oksfile=str(dataflow_db),
             include=local_object_databases,
-            n_dfapps=drunc_config.n_df_apps,
-            tpwriting_enabled=drunc_config.tpg_enabled,
+            n_dfapps=integtest_params.n_df_apps,
+            tpwriting_enabled=integtest_params.tpg_enabled,
             generate_segment=True,
-            n_data_writers=drunc_config.n_data_writers,
-            trmon_app=drunc_config.trmon_app_enabled,
+            n_data_writers=integtest_params.n_data_writers,
+            trmon_app=integtest_params.trmon_app_enabled,
         )
 
+        runcontrol_starts_connsvc = integtest_params.connsvc_control == ConnSvcControl.RUNCONTROL
         generate_session(
             oksfile=str(temp_config_db),
             include=local_object_databases
             + [str(readout_db), str(trigger_db), str(dataflow_db)]
-            + ([str(hsi_db)] if drunc_config.fake_hsi_enabled else []),
-            session_name=drunc_config.config_session_name,
-            op_env=drunc_config.op_env,
-            connectivity_service_is_infrastructure_app=drunc_config.drunc_connsvc,
-            disable_connectivity_service=disable_connectivity_service,
+            + ([str(hsi_db)] if integtest_params.fake_hsi_enabled else []),
+            session_name=integtest_params.config_session_name,
+            op_env=integtest_params.op_env,
+            connectivity_service_is_infrastructure_app=runcontrol_starts_connsvc,
+            disable_connectivity_service=no_integtest_connsvc,
         )
 
     consolidate_db(str(temp_config_db), str(config_db))
-    if drunc_config.connsvc_port is not None:
-        drunc_config.connsvc_port = set_connectivity_service_port(
+    if integtest_params.connsvc_port is not None:
+        integtest_params.connsvc_port = set_connectivity_service_port(
             oksfile=str(config_db),
-            session_name=drunc_config.config_session_name,
-            connsvc_port=drunc_config.connsvc_port, # Default is 0, which causes random port to be selected
+            session_name=integtest_params.config_session_name,
+            connsvc_port=integtest_params.connsvc_port, # Default is 0, which causes random port to be selected
         )
     # 05-Nov-2025, KAB, MiR: added the setting of a random RC port
-    set_rc_controller_port(oksfile=str(config_db), session_name=drunc_config.config_session_name, rc_port=0)
+    set_rc_controller_port(oksfile=str(config_db), session_name=integtest_params.config_session_name, rc_port=0)
 
     # 03-Jul-2025, KAB: added the setting of the TRACE_FILE env var in the OKS Session,
     # if it is set in the user's environment, and if it is not already set in the configuration.
     try:
         trace_file_env_var = os.environ["TRACE_FILE"]
-        set_session_env_var(str(config_db), drunc_config.config_session_name, "TRACE_FILE", trace_file_env_var, overwrite=False)
+        set_session_env_var(str(config_db), integtest_params.config_session_name, "TRACE_FILE", trace_file_env_var, overwrite=False)
     except KeyError:
         pass
 
@@ -364,7 +377,7 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
 
         db.update_dal(obj)
 
-    for substitution in drunc_config.config_substitutions:
+    for substitution in integtest_params.config_substitutions:
         if substitution.obj_id != "*":
             obj = db.get_dal(class_name=substitution.obj_class, uid=substitution.obj_id)
             apply_update(obj, substitution)
@@ -375,15 +388,8 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
 
     db.commit()
 
-    # For preconfigured tests, disable starting the ConnSvc if the ConnectionService is an ifapp or unused
-    sessionobj = db.get_dal(class_name="Session", uid=drunc_config.config_session_name)
-    if sessionobj.connectivity_service is None:
-        drunc_config.drunc_connsvc = True
-    for if_app in sessionobj.infrastructure_applications:
-        if if_app.className() == "ConnectionService":
-            drunc_config.drunc_connsvc = True
-
     # 30-Dec-2024, KAB: build up the list of directories used for writing raw and TPStream data
+    sessionobj = db.get_dal(class_name="Session", uid=integtest_params.config_session_name)
     rawdata_dirs = []
     tpstream_dirs = []
     trmon_dirs = []
@@ -417,7 +423,7 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
             pass
 
     result = CreateConfigResult(
-        config=drunc_config,
+        config=integtest_params,
         config_dir=config_dir,
         config_file=config_db,
         log_file=logfile,
@@ -451,10 +457,12 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     """
     run_control_commands = request.param
 
-    disable_connectivity_service = request.config.getoption(
-        "--disable-connectivity-service"
-    )
+    no_integtest_connsvc = request.config.getoption("--no-integtest-connsvc")
     integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
+
+    if no_integtest_connsvc and \
+       isinstance(create_config_files.config, integtest_params_for_generated_dunedaq_config):
+        create_config_files.config.connsvc_control = ConnSvcControl.NONE
 
     run_dir = tmp_path_factory.mktemp("run")
 
@@ -505,11 +513,11 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         # if the expected env var is not set, we simply don't create the bundle info file
         pass
 
+    # start the Connectivity Service, if requested (only supported for generated dune-daq configs, for now)
     connsvc_obj = None
     if (
-        not disable_connectivity_service
-        and not create_config_files.config.drunc_connsvc
-        and create_config_files.config.connsvc_port is not None
+        isinstance(create_config_files.config, integtest_params_for_generated_dunedaq_config)
+        and create_config_files.config.connsvc_control == ConnSvcControl.INTEGRATIONTEST
     ):
         # start connsvc
         if integtest_verbosity_level >= IntegtestVerbosityLevels.full_output:
@@ -518,9 +526,10 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
             )
 
         connsvc_env = os.environ.copy()
-        connsvc_env["CONNECTION_FLASK_DEBUG"] = str(
-            create_config_files.config.connsvc_debug_level
-        )
+        if create_config_files.config.connsvc_debug_level is not None:
+            connsvc_env["CONNECTION_FLASK_DEBUG"] = str(
+                create_config_files.config.connsvc_debug_level
+            )
 
         connsvc_log = open(
             run_dir
@@ -533,6 +542,10 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
             stderr=connsvc_log,
             env=connsvc_env,
         )
+
+    elif create_config_files.config.connsvc_debug_level is not None:
+        set_session_env_var(str(create_config_files.config_file), create_config_files.config.config_session_name,
+                            "CONNECTION_FLASK_DEBUG", create_config_files.config.connsvc_debug_level, overwrite=True)
 
     dunerc = request.config.getoption("--dunerc-path")
     if dunerc is None:

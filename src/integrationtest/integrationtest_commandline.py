@@ -22,7 +22,7 @@ def pytest_addoption(parser):
         required=False
     )
     parser.addoption(
-        "--disable-connectivity-service",
+        "--no-integtest-connsvc",
         action="store_true",
         default=False,
         help="Whether to disable the Connectivity Service for this test",
