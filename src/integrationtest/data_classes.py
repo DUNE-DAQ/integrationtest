@@ -107,9 +107,9 @@ class integtest_params_for_predefined_dunedaq_config(integtest_param_base_class)
 
 @dataclass
 class CreateConfigResult:
-    config: integtest_param_base_class
-    config_dir: str
-    config_file: str
+    integtest_params: integtest_param_base_class
+    dunedaq_config_dir: str
+    dunedaq_config_file: str
     log_file: str
     data_dirs: list[str]
     tpstream_data_dirs: list[str]
