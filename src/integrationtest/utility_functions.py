@@ -32,11 +32,11 @@ def basic_checks(run_dunerc, caplog, print_test_name: bool = True):
         pytest.fail(fail_msg, pytrace=False)
 
 
-def remove_hdf5_files_if_requested(run_dunerc, integtest_requests_hdf5_file_removal: bool = False):
+def remove_hdf5_files_if_requested(run_dunerc, this_test_requests_hdf5_file_removal: bool = False):
 
     # if either the integtest writer or the user running the test requested that the HDF5 files
     # be removed at the end of the test, do that.
-    if run_dunerc.user_requests_hdf5_file_removal or integtest_requests_hdf5_file_removal:
+    if run_dunerc.user_requests_hdf5_file_removal or this_test_requests_hdf5_file_removal:
         pathlist_string = ""
         filelist_string = ""
         for data_file in run_dunerc.data_files:
