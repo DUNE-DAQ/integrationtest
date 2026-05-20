@@ -423,9 +423,9 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
             pass
 
     result = CreateConfigResult(
-        config=integtest_params,
-        config_dir=config_dir,
-        config_file=config_db,
+        integtest_params=integtest_params,
+        dunedaq_config_dir=config_dir,
+        dunedaq_config_file=config_db,
         log_file=logfile,
         data_dirs=rawdata_dirs,
         tpstream_data_dirs=tpstream_dirs,
@@ -461,8 +461,8 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
 
     if no_integtest_connsvc and \
-       isinstance(create_config_files.config, integtest_params_for_generated_dunedaq_config):
-        create_config_files.config.connsvc_control = ConnSvcControl.NONE
+       isinstance(create_config_files.integtest_params, integtest_params_for_generated_dunedaq_config):
+        create_config_files.integtest_params.connsvc_control = ConnSvcControl.NONE
 
     run_dir = tmp_path_factory.mktemp("run")
 
@@ -516,36 +516,36 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     # start the Connectivity Service, if requested (only supported for generated dune-daq configs, for now)
     connsvc_obj = None
     if (
-        isinstance(create_config_files.config, integtest_params_for_generated_dunedaq_config)
-        and create_config_files.config.connsvc_control == ConnSvcControl.INTEGRATIONTEST
+        isinstance(create_config_files.integtest_params, integtest_params_for_generated_dunedaq_config)
+        and create_config_files.integtest_params.connsvc_control == ConnSvcControl.INTEGRATIONTEST
     ):
         # start connsvc
         if integtest_verbosity_level >= IntegtestVerbosityLevels.full_output:
             print(
-                f"Starting Connectivity Service on port {create_config_files.config.connsvc_port}"
+                f"Starting Connectivity Service on port {create_config_files.integtest_params.connsvc_port}"
             )
 
         connsvc_env = os.environ.copy()
-        if create_config_files.config.connsvc_debug_level is not None:
+        if create_config_files.integtest_params.connsvc_debug_level is not None:
             connsvc_env["CONNECTION_FLASK_DEBUG"] = str(
-                create_config_files.config.connsvc_debug_level
+                create_config_files.integtest_params.connsvc_debug_level
             )
 
         connsvc_log = open(
             run_dir
-            / f"log_{getpass.getuser()}_{create_config_files.config.daq_session_name}_connectivity-service.txt",
+            / f"log_{getpass.getuser()}_{create_config_files.integtest_params.daq_session_name}_connectivity-service.txt",
             "w",
         )
         connsvc_obj = subprocess.Popen(
-            f"gunicorn -b 0.0.0.0:{create_config_files.config.connsvc_port} --workers=1 --worker-class=gthread --threads=2 --timeout 5000000000 --log-level=info connectivityserver.connectionflask:app".split(),
+            f"gunicorn -b 0.0.0.0:{create_config_files.integtest_params.connsvc_port} --workers=1 --worker-class=gthread --threads=2 --timeout 5000000000 --log-level=info connectivityserver.connectionflask:app".split(),
             stdout=connsvc_log,
             stderr=connsvc_log,
             env=connsvc_env,
         )
 
-    elif create_config_files.config.connsvc_debug_level is not None:
-        set_session_env_var(str(create_config_files.config_file), create_config_files.config.config_session_name,
-                            "CONNECTION_FLASK_DEBUG", create_config_files.config.connsvc_debug_level, overwrite=True)
+    elif create_config_files.integtest_params.connsvc_debug_level is not None:
+        set_session_env_var(str(create_config_files.dunedaq_config_file), create_config_files.integtest_params.config_session_name,
+                            "CONNECTION_FLASK_DEBUG", create_config_files.integtest_params.connsvc_debug_level, overwrite=True)
 
     dunerc = request.config.getoption("--dunerc-path")
     if dunerc is None:
@@ -588,13 +588,13 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         temp_suffix = ".temp_saved"
         now = time.time()
         for file_obj in rawdata_dir.glob(
-            f"{create_config_files.config.op_env}_raw*.hdf5"
+            f"{create_config_files.integtest_params.op_env}_raw*.hdf5"
         ):
             print(f"Renaming raw data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
         for file_obj in rawdata_dir.glob(
-            f"{create_config_files.config.op_env}_raw*.hdf5{temp_suffix}"
+            f"{create_config_files.integtest_params.op_env}_raw*.hdf5{temp_suffix}"
         ):
             modified_time = file_obj.stat().st_mtime
             if (now - modified_time) > 3600:
@@ -608,13 +608,13 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         temp_suffix = ".temp_saved"
         now = time.time()
         for file_obj in tpset_dir.glob(
-            f"{create_config_files.config.op_env}_tp*.hdf5"
+            f"{create_config_files.integtest_params.op_env}_tp*.hdf5"
         ):
             print(f"Renaming TP data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
         for file_obj in tpset_dir.glob(
-            f"{create_config_files.config.op_env}_tp*.hdf5{temp_suffix}"
+            f"{create_config_files.integtest_params.op_env}_tp*.hdf5{temp_suffix}"
         ):
             modified_time = file_obj.stat().st_mtime
             if (now - modified_time) > 3600:
@@ -628,13 +628,13 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         temp_suffix = ".temp_saved"
         now = time.time()
         for file_obj in trmon_dir.glob(
-            f"{create_config_files.config.op_env}_trmon*.hdf5"
+            f"{create_config_files.integtest_params.op_env}_trmon*.hdf5"
         ):
             print(f"Renaming TRMon data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
         for file_obj in trmon_dir.glob(
-            f"{create_config_files.config.op_env}_trmon*.hdf5{temp_suffix}"
+            f"{create_config_files.integtest_params.op_env}_trmon*.hdf5{temp_suffix}"
         ):
             modified_time = file_obj.stat().st_mtime
             if (now - modified_time) > 3600:
@@ -650,8 +650,8 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     # 25-Mar-2026, KAB: use subprocess.Popen to manage the run control session so that we can
     # capture the console output and pass it back to the user for inspection and validation.
     popen_command_list = [dunerc] + dunerc_option_strings + [process_manager_type] \
-        + [str(create_config_files.config_file)] + [str(create_config_files.config.config_session_name)] \
-        + [str(create_config_files.config.daq_session_name)] + run_control_commands
+        + [str(create_config_files.dunedaq_config_file)] + [str(create_config_files.integtest_params.config_session_name)] \
+        + [str(create_config_files.integtest_params.daq_session_name)] + run_control_commands
     rc_process = subprocess.Popen(
         popen_command_list,
         stdout=subprocess.PIPE,
@@ -740,35 +740,35 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
             pass
         connsvc_obj.kill()
 
-    if create_config_files.config.attempt_cleanup:
+    if create_config_files.integtest_params.attempt_cleanup:
         print(
             "Checking for remaining gunicorn and drunc-controller processes", flush=True
         )
         subprocess.run(["killall", "gunicorn", "drunc-controller"])
 
-    result.confgen_config = create_config_files.config
-    result.config_session_name = create_config_files.config.config_session_name
-    result.daq_session_name = create_config_files.config.daq_session_name
+    result.confgen_config = create_config_files.integtest_params
+    result.config_session_name = create_config_files.integtest_params.config_session_name
+    result.daq_session_name = create_config_files.integtest_params.daq_session_name
     # 27-Feb-2026, KAB: the nanorc_commands return value can be removed once
     # all integtests have been changed to use "dunerc".
     result.nanorc_commands = run_control_commands
     result.dunerc_commands = run_control_commands
     result.run_dir = run_dir
-    result.config_dir = create_config_files.config_dir
+    result.dunedaq_config_dir = create_config_files.dunedaq_config_dir
     result.data_files = []
     for rawdata_dir in rawdata_dirs:
         result.data_files += list(
-            rawdata_dir.glob(f"{create_config_files.config.op_env}_raw_*.hdf5")
+            rawdata_dir.glob(f"{create_config_files.integtest_params.op_env}_raw_*.hdf5")
         )
     result.tpset_files = []
     for tpset_dir in tpset_dirs:
         result.tpset_files += list(
-            tpset_dir.glob(f"{create_config_files.config.op_env}_tp_*.hdf5")
+            tpset_dir.glob(f"{create_config_files.integtest_params.op_env}_tp_*.hdf5")
         )
     result.trmon_files = []
     for trmon_dir in trmon_dirs:
         result.trmon_files += list(
-            trmon_dir.glob(f"{create_config_files.config.op_env}_trmon_*.hdf5")
+            trmon_dir.glob(f"{create_config_files.integtest_params.op_env}_trmon_*.hdf5")
         )
     result.log_files = list(run_dir.glob("log_*.txt")) + list(run_dir.glob("log_*.log"))
     result.opmon_files = list(run_dir.glob(f"info*{result.daq_session_name}*.json"))
@@ -776,6 +776,7 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     # information in fine-tuning the allowed ranges in time-based checking of test results.
     result.daq_session_overall_time = time_after - time_before
     result.verbosity_helper = VerbosityHelper(integtest_verbosity_level)
+    result.user_requests_hdf5_file_removal = request.config.getoption("--remove-hdf5-files")
     if number_of_lines_printed_to_the_console > 0:
         print("---------- DRUNC Session END ----------", flush=True)
         print("", flush=True)
