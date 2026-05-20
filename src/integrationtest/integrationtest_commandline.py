@@ -56,6 +56,13 @@ def pytest_addoption(parser):
         help="A phrase that, if found in run control messages, will trigger the printout of all RC messages",
         required=False
     )
+    parser.addoption(
+        "--remove-hdf5-files",
+        action="store_true",
+        default=False,
+        help="Whether to remove HDF5 (data) files when the testing has finished",
+        required=False
+    )
 
 def pytest_configure(config):
     for opt in ("--dunerc-path",):
