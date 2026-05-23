@@ -1,13 +1,22 @@
 # Survey of triggers that are used in existing integtests as of May 2026
 
-Reminders of the typical trigger sources that we use in integration/regression tests (and emulated-data running generally):
+## Introduction
 
-* RandomTriggerCandidateMaker
-    * This software module typically runs in the MLTApplication (along with the MLTModule and the DataHandlerModule that converts TriggerActivity objects into TriggerCandidate objects), and it receives TimeSync messages from the ReadoutApplications so that it knows what DTS (DUNE Timing System) timestamps are currently being processed by the emulated-data system.  It has the ability to produce periodic triggers at a configurable rate, and it uses the knowledge of "detector time" that it gains from the TimeSync messages to provide a useful timestamp in the TriggerCandidate objects that it creates.
-* FakeHSIEventGenerator
-* TriggerActivity and TriggerCandidate objects derived from TriggerPrimitives
+First, here a list of the typical trigger sources that we use in integration/regression tests (and emulated-data running generally):
 
-## daqsystemtest package
+* **RandomTriggerCandidateMaker**
+    * This software module typically runs in the MLTApplication (along with the _MLTModule_ and the _DataHandlerModule_ that converts TriggerActivity objects into TriggerCandidate objects), and it receives TimeSync messages from the ReadoutApplications so that it knows what DTS (DUNE Timing System) timestamps are currently being processed by the emulated-data system.  It has the ability to produce periodic triggers at a configurable rate, and it uses the knowledge of "detector time" that it gains from the TimeSync messages to provide a useful timestamp in the TriggerCandidate objects that it creates.
+* **FakeHSIEventGenerator**
+* **TriggerActivity and TriggerCandidate objects derived from TriggerPrimitives**
+
+Next, recall that it is the MLT (Module Level Trigger) that specifies the readout window size for each trigger (TriggerDecision).  It does this based on the configuration that it was provided.
+
+## Summary information, by repository
+
+| Integtest name | RTCM | FakeHSI | Triggers from TPs |
+| --- | --- | --- | --- |
+| 3ru_1df_multirun_test.py | | | |
+| 3ru_3df_multirun_test.py | 3Hz | - | - |
 
 ### 3ru_1df_multirun_test.py
 
