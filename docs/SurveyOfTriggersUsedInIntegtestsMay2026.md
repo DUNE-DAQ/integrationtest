@@ -1,4 +1,4 @@
-# Survey of triggers that are used in existing integtests, May 2026
+# Survey of trigger and readout window configurations that are used in existing integtests, May 2026
 
 ## Introduction
 
@@ -13,7 +13,7 @@ Next, recall that it is the MLT (Module Level Trigger) that specifies the readou
 
 ## Configured trigger types, trigger rates, readout window widths, etc.
 
-The following tables list the configuration parameters that are set for each of the integration tests.  If a given test does not use a particular trigger type, nothing is listed.
+The tables in this section list the configuration parameters that are set for each of the integration tests.  If an integtest uses more than one DUNE-DAQ configuration, the super-set of trigger types is listed.  If a given test does not use a particular trigger type, nothing is listed.
 
 To help save space in the table cells, the following abbreviations are used:
 
@@ -26,7 +26,7 @@ To help save space in the table cells, the following abbreviations are used:
 | Integtest name | RTCM | FakeHSI | Triggers from TPs |
 | --- | :---: | :---: | :---: |
 | 3ru_1df_multirun_test.py | | | |
-| 3ru_3df_multirun_test.py | 3Hz | - | - |
+| 3ru_3df_multirun_test.py | 3Hz trigger rate, RWTB=abc,<br/>RWTB=def, RWW: pdq sec | - | - |
 | disabled_tpg_test.py | - | - | - |
 | example_system_test.py | - | - | - |
 | fake_data_producer_test.py | - | - | - |
