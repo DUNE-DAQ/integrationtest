@@ -17,16 +17,16 @@ The tables in this section list the configuration parameters that are set for ea
 
 To help save space in the table cells, the following abbreviations are used:
 
-* RWTB - readout window ticks before - this value determines the start of the readout window. This number of DTS clock ticks is subtracted from the trigger time to determine the start of the readout window.
-* RWTA - readout window ticks after - this value determines the end of the readout window. This number of DTS clock ticks is added to the trigger time to determine the end of the readout window.
-* RWW - readout window width, in either DTS clock ticks, wallclock seconds, or both
+* RWBT - readout window begin ticks - this value determines the beginning of the readout window.  It is added to the trigger time to determine the beginning of the readout window.  Obviously, if this value is less than zero, the result is a timestamp that is earlier than the trigger time.
+* RWET - readout window end ticks - this value determines the end of the readout window.  It is added to the trigger time to determine the end of the readout window.
+* RWW - readout window width, in either DTS clock ticks, wallclock time, or both.
 
 ### Integtests in the _daqsystemtest_ repo:
 
 | Integtest name | RTCM | FakeHSI | Triggers from TPs |
 | --- | :---: | :---: | :---: |
-| 3ru_1df_multirun_test.py | | | |
-| 3ru_3df_multirun_test.py | 3Hz trigger rate, RWTB=abc,<br/>RWTB=def, RWW: pdq sec | - | - |
+| 3ru_1df_multirun_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of data producers=3, StreamEmu TP_rate param=1, TAMakerPrescale=100, TCMakerPrescale=100, effective 5.5 Hz, RWBT=0, RWET=32, RWW=512 nsec |
+| 3ru_3df_multirun_test.py | 3 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of data produsers=2, StreamEmu TP_rate param=1, TAMakerPrescale=100, TCMakerPrescale=100, effective 3.6 Hz, RWBT=0, RWET=32, RWW=512 nsec |
 | disabled_tpg_test.py | - | - | - |
 | example_system_test.py | - | - | - |
 | fake_data_producer_test.py | - | - | - |
