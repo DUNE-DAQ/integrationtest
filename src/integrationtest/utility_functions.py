@@ -34,9 +34,16 @@ def basic_checks(run_dunerc, caplog, print_test_name: bool = True):
 
 def remove_hdf5_files_if_requested(run_dunerc, this_test_requests_hdf5_file_removal: bool = False):
 
-    # if either the integtest writer or the user running the test requested that the HDF5 files
-    # be removed at the end of the test, do that.
-    if run_dunerc.user_requests_hdf5_file_removal or this_test_requests_hdf5_file_removal:
+    # if the user requested that the files should be kept, we can simply exit early
+    if (run_dunerc.user_requests_hdf5_file_removal is not None and
+        "false" in run_dunerc.user_requests_hdf5_file_removal.lower()):
+        return
+
+    # if either of the integtest writer or the user running the test requested that the HDF5 files
+    # be deleted at the end of the test, do that.
+    if ((run_dunerc.user_requests_hdf5_file_removal is not None and
+         "true" in run_dunerc.user_requests_hdf5_file_removal.lower()) or
+        this_test_requests_hdf5_file_removal):
         pathlist_string = ""
         filelist_string = ""
         for data_file in run_dunerc.data_files:
