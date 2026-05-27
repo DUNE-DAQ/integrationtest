@@ -4,7 +4,9 @@ This package provides a simple framework for integration tests of the DUNE DAQ s
 
 # How-to
 
-The primary testing module in `integrationtest` is [integrationtest_drunc.py](https://github.com/DUNE-DAQ/integrationtest/blob/develop/python/integrationtest/integrationtest_drunc.py). It supports either passing a complete configuration or using `daqconf` to generate segment applications in a "standard" DUNE-DAQ topology.
+The primary testing module in `integrationtest` is [integrationtest_drunc.py](https://github.com/DUNE-DAQ/integrationtest/blob/develop/python/integrationtest/integrationtest_drunc.py). It supports either passing a complete configuration or using tools in the `daqconf` repo to generate segment applications in a "standard" DUNE-DAQ topology.
+
+The parameters associated with the use of a complete DUNE-DAQ (OKS) configuration are specified in an instance of the `integtest_params_for_predefined_dunedaq_config` Python data class, and the parameters that specify the details of a generated DUNE-DAQ configuration are communicated in an instance of the `integtest_params_for_generated_dunedaq_config` Python data class. (Both of these data classes inherit from the `integtest_param_base_class` data class.)
 
 Explaining how to write tests is probably easiest with an example. Each test file should be named `test_*.py` or `*_test.py` to follow pytest's [conventions for Python test discovery](https://docs.pytest.org/en/6.2.x/goodpractices.html#test-discovery), and they are usually placed in the `integtest` subdirectory of your repository. Here's `test_integration.py`:
 
@@ -18,17 +20,20 @@ import integrationtest.data_classes as data_classes
 # Use the integrationtest_drunc plugin
 pytest_plugins = "integrationtest.integrationtest_drunc" 
 
+# Create a meta-configuration. The parameters in this data class are used by integrationtest_drunc
+# and scripts in the daqconf repo to generate the DUNE-DAQ configuration.
+config_obj = data_classes.integtest_params_for_generated_dunedaq_config()
+
 # Load pre-configured objects from this OKS database file
-object_databases = ["config/daqsystemtest/integrationtest-objects.data.xml"]
+config_obj.object_databases = ["config/daqsystemtest/integrationtest-objects.data.xml"]
 
-# Create a meta-configuration. This is used by integrationtest_drunc to configure daqconf
-config_obj  = data_classes.drunc_config()
-
-# Declare the set of configurations to be tested, as a dictionary of name: drunc_config() pairs or as a list of drunc_config() objects
+# Declare the set of configurations to be tested, as a dictionary of name: integtest_param_base_class() pairs or as a list of integtest_param_base_class() objects
 confgen_arguments = [config_obj]
 
 # The commands to run in dunerc, as a list (this is read by integrationtest_drunc)
 dunerc_command_list="boot conf start --run-number 1 enable-triggers wait 10 disable-triggers wait 2 drain-dataflow wait 2 stop-trigger-sources stop scrap terminate".split()
+
+
 
 # The tests themselves
 
@@ -50,7 +55,7 @@ def test_data_file(run_dunerc):
     assert data_file_checks.check_fragment_sizes(data_file, min_frag_size=22344, max_frag_size=22344)
 ```
 
-As you can see, there are two main parts to the file: the "setup" part, containing definitions of variables used by the integrationtest plugin to configure the tests; and the tests themselves, which consist of functions containing `assert`s for conditions that should be true after the drunc run. (Note that for historic reasons, several things are still named `dunerc` after the previous run control implementation.)
+As you can see, there are two main parts to the file: the "setup" part, containing definitions of variables used by the integrationtest plugin to configure the tests; and the tests themselves, which consist of functions containing `assert`s for conditions that should be true after the drunc run.
 
 To run the test, go to the directory holding it and:
 
@@ -68,20 +73,23 @@ Each test function's name must begin with `test_` and the function should take `
 of the `run_dunerc` [fixture](https://docs.pytest.org/en/6.2.x/fixture.html#fixtures) from this package. The `run_dunerc` object has attributes:
 
 * `completed_process`: [`subprocess.CompletedProcess`](https://docs.python.org/3/library/subprocess.html#subprocess.CompletedProcess) object with the output of the run control process
-* `confgen_config`: The drunc_config object used for this test instance
-* `session`: The name of the OKS `Session` object used as the entry-point for the configuration
-* `session_name`: The name given for the running session of the DAQ
+* `confgen_config`: The integtest_param_base_class object used for this test instance
+* `config_session_name`: The name of the OKS `Session` object used as the entry-point for the configuration
+* `daq_session_name`: The name given for the running session of the DAQ
 * `dunerc_commands`:  The list of commands given to run control for this test (useful when running multiple configs/sessions as described below)
 * `run_dir`:           [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) pointing to the directory in which dunerc was run
 * `config_dir`:          [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) pointing to the directory in which the run configuration is stored
 * `data_files`:        list of [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) with each of the HDF5 data files produced by the run
 * `tpset_files`:        list of [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) with each of the HDF5 TP files produced by the run
+* `trmon_files`:        list of [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) with each of the HDF5 TR-monitoring files produced by the run
 * `log_files`:         list of [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) with each of the log files produced by the run
 * `opmon_files`:       list of [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) with each of the opmon json files produced by the run
+* `daq_session_overall_time`: the amount of time that the DAQ session was active
+* `verbosity_helper`:  utility to help determine whether various console messages should be displayed or not based on the verbosity setting provided by the user
 
 ## Running multiple configurations/sessions
 
-You may want to run the same tests on the output of multiple confgens (eg, to check that the system works with a particular option both on and off). To do this, add additional `"name": drunc_config()` entries to the `confgen_arguments` dictionary in your test script.
+You may want to run the same tests on the output of multiple confgens (eg, to check that the system works with a particular option both on and off). To do this, add additional `"name": integtest_param_base_class()` entries to the `confgen_arguments` dictionary in your test script.
 
 ```python
 confgen_arguments=[ basic_config_obj,  altered_config_obj ]
