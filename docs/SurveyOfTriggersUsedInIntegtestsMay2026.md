@@ -32,13 +32,13 @@ ToDo:  add an explanation of how the emulated TP rate is determined.  e.g. 9x64x
 | disabled_tpg_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | 3 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec | - |
 | example_system_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | 3 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec | number of WIBs=4 or 8, StreamEmu TP_rate param=1, TAMakerPrescale=1000, TCMakerPrescale=100, effective 0.25 or 0.5 Hz, RWBT=0, RWET=32, RWW=512 nsec |
 | fake_data_producer_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=2001, RWW=64.02 usec | - | - |
-| long_window_readout_test.py | - | - | - |
+| long_window_readout_test.py | 0.05 Hz trigger rate, RWBT=-100000000, RWET=1000000, RWW=1.62 sec | - | - |
 | minimal_system_quick_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | - |
 | readout_type_scan_test.py | - | - | - |
 | sample_ehn1_multihost_test.py | - | - | - |
 | small_footprint_quick_test.py | - | 1 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec  | - |
-| tpg_state_collection_test.py | - | - | - |
-| tpreplay_test.py | - | - | - |
+| tpg_state_collection_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | - |
+| tpreplay_test.py | 0 Hz | - | - |
 | tpstream_writing_test.py | - | - | - |
 | trigger_bitwords_test.py | - | - | - |
 
