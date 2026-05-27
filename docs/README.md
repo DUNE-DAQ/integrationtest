@@ -27,30 +27,30 @@ config_obj  = data_classes.drunc_config()
 # Declare the set of configurations to be tested, as a dictionary of name: drunc_config() pairs or as a list of drunc_config() objects
 confgen_arguments = [config_obj]
 
-# The commands to run in nanorc, as a list (this is read by integrationtest_drunc)
-nanorc_command_list="boot conf start --run-number 1 enable-triggers wait 10 disable-triggers wait 2 drain-dataflow wait 2 stop-trigger-sources stop scrap terminate".split()
+# The commands to run in dunerc, as a list (this is read by integrationtest_drunc)
+dunerc_command_list="boot conf start --run-number 1 enable-triggers wait 10 disable-triggers wait 2 drain-dataflow wait 2 stop-trigger-sources stop scrap terminate".split()
 
 # The tests themselves
 
-def test_nanorc_success(run_nanorc):
-    # Check that nanorc completed correctly
-    assert run_nanorc.completed_process.returncode==0
+def test_dunerc_success(run_dunerc):
+    # Check that dunerc completed correctly
+    assert run_dunerc.completed_process.returncode==0
 
-def test_log_files(run_nanorc):
+def test_log_files(run_dunerc):
     # Check that there are no warnings or errors in the log files
-    assert log_file_checks.logs_are_error_free(run_nanorc.log_files)
+    assert log_file_checks.logs_are_error_free(run_dunerc.log_files)
 
-def test_data_file(run_nanorc):
+def test_data_file(run_dunerc):
     # Run some tests on the output data file
-    assert len(run_nanorc.data_files)==1
+    assert len(run_dunerc.data_files)==1
 
-    data_file=data_file_checks.DataFile(run_nanorc.data_files[0])
+    data_file=data_file_checks.DataFile(run_dunerc.data_files[0])
     assert data_file_checks.sanity_check(data_file)
     assert data_file_checks.check_link_presence(data_file, n_links=1)
     assert data_file_checks.check_fragment_sizes(data_file, min_frag_size=22344, max_frag_size=22344)
 ```
 
-As you can see, there are two main parts to the file: the "setup" part, containing definitions of variables used by the integrationtest plugin to configure the tests; and the tests themselves, which consist of functions containing `assert`s for conditions that should be true after the drunc run. (Note that for historic reasons, several things are still named `nanorc` after the previous run control implementation.)
+As you can see, there are two main parts to the file: the "setup" part, containing definitions of variables used by the integrationtest plugin to configure the tests; and the tests themselves, which consist of functions containing `assert`s for conditions that should be true after the drunc run. (Note that for historic reasons, several things are still named `dunerc` after the previous run control implementation.)
 
 To run the test, go to the directory holding it and:
 
@@ -64,15 +64,15 @@ The test framework handles running python with the confgen specified in the test
 
 ## Writing test functions
 
-Each test function's name must begin with `test_` and the function should take `run_nanorc` as an argument. The `run_nanorc` argument refers to the return value
-of the `run_nanorc` [fixture](https://docs.pytest.org/en/6.2.x/fixture.html#fixtures) from this package. The `run_nanorc` object has attributes:
+Each test function's name must begin with `test_` and the function should take `run_dunerc` as an argument. The `run_dunerc` argument refers to the return value
+of the `run_dunerc` [fixture](https://docs.pytest.org/en/6.2.x/fixture.html#fixtures) from this package. The `run_dunerc` object has attributes:
 
 * `completed_process`: [`subprocess.CompletedProcess`](https://docs.python.org/3/library/subprocess.html#subprocess.CompletedProcess) object with the output of the run control process
 * `confgen_config`: The drunc_config object used for this test instance
 * `session`: The name of the OKS `Session` object used as the entry-point for the configuration
 * `session_name`: The name given for the running session of the DAQ
-* `nanorc_commands`:  The list of commands given to run control for this test (useful when running multiple configs/sessions as described below)
-* `run_dir`:           [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) pointing to the directory in which nanorc was run
+* `dunerc_commands`:  The list of commands given to run control for this test (useful when running multiple configs/sessions as described below)
+* `run_dir`:           [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) pointing to the directory in which dunerc was run
 * `config_dir`:          [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) pointing to the directory in which the run configuration is stored
 * `data_files`:        list of [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) with each of the HDF5 data files produced by the run
 * `tpset_files`:        list of [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) with each of the HDF5 TP files produced by the run
@@ -89,12 +89,12 @@ confgen_arguments=[ basic_config_obj,  altered_config_obj ]
 
 This will run the configuration generation twice: once with the `basic_config_obj` and once with `altered_test_obj`. The DAQ will be run for each of the resultant configurations (in this example, two `drunc` sessions would be run).
 
-You can have multiple runs of the DAQ per configuration too: modify `nanorc_command_list` to be a list of lists of commands. The total number of DAQ runs will then be `len(confgen_arguments) * len(nanorc_command_list)`. (It is also possible to have multiple runs within a single instance of the DAQ by having your command list include stop..start transitions.)
+You can have multiple runs of the DAQ per configuration too: modify `dunerc_command_list` to be a list of lists of commands. The total number of DAQ runs will then be `len(confgen_arguments) * len(dunerc_command_list)`. (It is also possible to have multiple runs within a single instance of the DAQ by having your command list include stop..start transitions.)
 
-`pytest` will automatically generate names for each `(confgen_arguments, nanorc_command_list)` pair. You can provide more meaningful names by providing `confgen_arguments` and/or `nanorc_command_list` as a dictionary. Each key is the human-readable name of the instance, and the corresponding value is the list of arguments or commands. Eg, for two nanorc runs with different lengths, with names "longer" and "shorter":
+`pytest` will automatically generate names for each `(confgen_arguments, dunerc_command_list)` pair. You can provide more meaningful names by providing `confgen_arguments` and/or `dunerc_command_list` as a dictionary. Each key is the human-readable name of the instance, and the corresponding value is the list of arguments or commands. Eg, for two dunerc runs with different lengths, with names "longer" and "shorter":
 
 ```python
-nanorc_command_list={ "longer": "boot conf start --run-number 1 enable-triggers wait 20 disable-triggers wait 2 drain-dataflow wait 2 stop-trigger-sources stop scrap terminate".split(),
+dunerc_command_list={ "longer": "boot conf start --run-number 1 enable-triggers wait 20 disable-triggers wait 2 drain-dataflow wait 2 stop-trigger-sources stop scrap terminate".split(),
                       "shorter": "boot conf start --run-number 1 enable-triggers wait 10 disable-triggers wait 2 drain-dataflow wait 2 stop-trigger-sources stop scrap terminate".split() }
 ```
 
