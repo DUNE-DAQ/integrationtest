@@ -114,21 +114,23 @@ dunerc_command_list={ "longer": "boot conf start --run-number 1 enable-triggers 
 
 ## Configuring your test
 
-The meta-configuration objects are defined in the [data_classes.py](https://github.com/DUNE-DAQ/integrationtest/blob/develop/python/integrationtest/data_classes.py) file. Configurations are generated using the following steps:
-1. Preconfigured objects are loaded (`object_databases = ["config/daqsystemtest/integrationtest-objects.data.xml"]`) This file includes elements of the "standard" configuration present in `daqsystemtest`
-1. `daqconf` generate.py methods are called by `integrationtest` to create the Segment apps (e.g. generate_hwmap, generate_readout, ...). The arguments to these methods come from the drunc_config object
+The meta-configuration objects are defined in the [data_classes.py](https://github.com/DUNE-DAQ/integrationtest/blob/develop/python/integrationtest/data_classes.py) file.
+
+DUNE-DAQ configurations that are specified in `integtest_params_for_generated_dunedaq_config()` data classes are generated using the following steps:
+1. Preconfigured objects are loaded (`config_obj.object_databases = ["config/daqsystemtest/integrationtest-objects.data.xml"]`) This file includes elements of the "standard" configuration present in `daqsystemtest`
+1. `daqconf` generate.py methods are called by `integrationtest` to create the Segment apps (e.g. `generate_hwmap`, `generate_readout`, ...). The arguments to these methods come from the drunc_config object
 1. User-supplied configuration substitutions are applied to the configuration.
 
-If the user supplies a valid config_db argument in their drunc_config, the second step is skipped, and the provided configuration is copied into the output directory instead.
+If the user supplies an `integtest_params_for_predefined_dunedaq_config()` data class instead, the second step is skipped, and the provided configuration is copied into the output directory instead.
 
 Configuration substitutions are provided by the user as instances of the `config_substitution` data class:
 ```python
-substitution = data_classes.config_substitution(
-    obj_id="random-tc-generator",
-    obj_class="RandomTCMakerConf",
-    updates={"trigger_rate_hz": 1},
+conf_dict.config_substitutions.append(
+    data_classes.attribute_substitution(
+        obj_class="RandomTCMakerConf",
+        updates={"trigger_rate_hz": 1},
+    )
 )
-conf_dict.config_substitutions.append(substitution)
 ```
 Substitutions can be applied to a single object in the database or all objects of a given class. If obj_id is specified, it applies only to that one object, if found.
 
