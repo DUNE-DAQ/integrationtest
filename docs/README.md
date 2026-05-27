@@ -89,10 +89,16 @@ of the `run_dunerc` [fixture](https://docs.pytest.org/en/6.2.x/fixture.html#fixt
 
 ## Running multiple configurations/sessions
 
-You may want to run the same tests on the output of multiple confgens (eg, to check that the system works with a particular option both on and off). To do this, add additional `"name": integtest_param_base_class()` entries to the `confgen_arguments` dictionary in your test script.
+You may want to run the same tests on the output of multiple confgens (eg, to check that the system works with a particular option both on and off). To do this, add additional entries to the `confgen_arguments` list (or dictionary) in your test script.  
+
+For example,
 
 ```python
 confgen_arguments=[ basic_config_obj,  altered_config_obj ]
+```
+or
+```python
+confgen_arguments={ "Basic": basic_config_obj,  "Altered": altered_config_obj }
 ```
 
 This will run the configuration generation twice: once with the `basic_config_obj` and once with `altered_test_obj`. The DAQ will be run for each of the resultant configurations (in this example, two `drunc` sessions would be run).
