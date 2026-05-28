@@ -107,7 +107,9 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
     # 06-Apr-2026, KAB: if the verbosity level is set to enable DRUNC debug messages, add
     # some strings to the excluded substring map so we don't trigger on those debug messages
     if verbosity_helper.compare_level(IntegtestVerbosityLevels.drunc_debug):
-        excluded_substring_map["SSH_SHELL_process_manager"] = ["RAN:", "LogLevel=error"]
+        excluded_substring_map.setdefault("SSH_SHELL_process_manager", []).extend(
+            ["RAN:", "LogLevel=error"]
+        )
 
     all_ok=True
     #print("") # Clear potential dot from pytest
