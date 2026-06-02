@@ -60,7 +60,7 @@ def pytest_addoption(parser):
         "--remove-hdf5-files",
         action="store",
         default=None,
-        help="Whether to remove HDF5 (data) files when the testing has finished (this over-rides the choice in the integtest). 'True' forces files to be removed, 'False' forces files to be kept.",
+        help="Whether to remove HDF5 (data) files when the testing has finished (this over-rides the choice in the integtest). 'always' forces files to be removed, 'never' forces files to be kept.",
         required=False
     )
 

@@ -36,13 +36,15 @@ def remove_hdf5_files_if_requested(run_dunerc, this_test_requests_hdf5_file_remo
 
     # if the user requested that the files should be kept, we can simply exit early
     if (run_dunerc.user_requests_hdf5_file_removal is not None and
-        "false" in run_dunerc.user_requests_hdf5_file_removal.lower()):
+        ("false" in run_dunerc.user_requests_hdf5_file_removal.lower() or
+         "never" in run_dunerc.user_requests_hdf5_file_removal.lower())):
         return
 
     # if either of the integtest writer or the user running the test requested that the HDF5 files
     # be deleted at the end of the test, do that.
     if ((run_dunerc.user_requests_hdf5_file_removal is not None and
-         "true" in run_dunerc.user_requests_hdf5_file_removal.lower()) or
+         ("true" in run_dunerc.user_requests_hdf5_file_removal.lower() or
+          "always" in run_dunerc.user_requests_hdf5_file_removal.lower())) or
         this_test_requests_hdf5_file_removal):
         pathlist_string = ""
         filelist_string = ""
