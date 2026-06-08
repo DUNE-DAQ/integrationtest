@@ -145,8 +145,8 @@ def check_metric_value_sum(collated_opmon_data: dict, dict_key_list: list, min_v
 #   [daq_session_name, "df-01", "appfwk.AppInfo", "state"]
 # Returns False if a problem is encountered (e.g. parsing the collated JSON metric data)
 # or the metric (string) values do not match the specified regex.  True otherwise.
-def check_metric_value_substring_absence(collated_opmon_data: dict, dict_key_list: list, pattern_string: str,
-                                         verbosity_helper: VerbosityHelper = VerbosityHelper(99)):
+def check_metric_value_string(collated_opmon_data: dict, dict_key_list: list, pattern_string: str,
+                              verbosity_helper: VerbosityHelper = VerbosityHelper(99)):
     full_key_path = dict_key_list[0]
     for key_name in dict_key_list[1:]:
         full_key_path += "/" + str(key_name)
@@ -180,7 +180,7 @@ def check_metric_value_substring_absence(collated_opmon_data: dict, dict_key_lis
 
     for timestamp_string, value_string in working_dict.items():
         if not re.search(pattern_string, value_string):
-            print(f"\N{POLICE CARS REVOLVING LIGHT} One of the metric values for key \"{full_key_path}\" (\"{value_string}\") does not match the expected pattern ({pattern_string}). \N{POLICE CARS REVOLVING LIGHT}")
+            print(f"\N{POLICE CARS REVOLVING LIGHT} One of the metric values for key \"{full_key_path}\" ({repr(value_string)}) does not match the expected pattern ({pattern_string}). \N{POLICE CARS REVOLVING LIGHT}")
             return False
 
     verbosity_helper.lvl_print(IntegtestVerbosityLevels.drunc_transitions,
