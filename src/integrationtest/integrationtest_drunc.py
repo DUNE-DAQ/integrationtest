@@ -239,6 +239,9 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
         found_file = file_exists(integtest_conf)
         if not found_file:
             try:
+                # the name of a file somewhere in the DB path shouldn't have a leading slash,
+                # so we'll provide that little bit of helpfulness here
+                integtest_conf = integtest_conf.lstrip("/")
                 path_string = os.environ["DUNEDAQ_DB_PATH"]
                 directories = path_string.split(":")
                 found_file = any((pathlib.Path(dd) / integtest_conf).is_file() for dd in directories if dd)
