@@ -67,6 +67,9 @@ class integtest_param_base_class:
     connsvc_port: int = 0
     connsvc_debug_level: int = None
 
+    # command-line arguments to be passed to run control
+    dunerc_cmd_args: list[str] = field(default_factory=list)
+
 @dataclass
 class integtest_params_for_generated_dunedaq_config(integtest_param_base_class):
     # *** Parameters that are needed for both generated and predefined configs,
