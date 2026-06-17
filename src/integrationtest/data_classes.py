@@ -67,6 +67,9 @@ class integtest_param_base_class:
     connsvc_port: int = 0
     connsvc_debug_level: int = None
 
+    # whether the HDF5 files should be deleted at the end of the test
+    remove_hdf5_files: bool = False
+
 @dataclass
 class integtest_params_for_generated_dunedaq_config(integtest_param_base_class):
     # *** Parameters that are needed for both generated and predefined configs,
