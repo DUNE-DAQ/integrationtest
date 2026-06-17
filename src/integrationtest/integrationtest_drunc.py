@@ -234,11 +234,24 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
 
     if isinstance(integtest_params, integtest_params_for_predefined_dunedaq_config):
         integtest_conf = integtest_params.predefined_config_db
-        if file_exists(integtest_conf):
+        # 10-Jun-2026, KAB: added support for finding the specified config_db file
+        # in one of the directories listed in the DUNEDAQ_DB_PATH env var
+        found_file = file_exists(integtest_conf)
+        if not found_file:
+            try:
+                # the name of a file somewhere in the DB path shouldn't have a leading slash,
+                # so we'll provide that little bit of helpfulness here
+                integtest_conf = integtest_conf.lstrip("/")
+                path_string = os.environ["DUNEDAQ_DB_PATH"]
+                directories = path_string.split(":")
+                found_file = any((pathlib.Path(dd) / integtest_conf).is_file() for dd in directories if dd)
+            except KeyError:
+                pass
+        if found_file:
             print(f"Integtest preconfigured config file: {integtest_conf}")
             consolidate_files(str(temp_config_db), integtest_conf)
         else:
-            fail_msg = f"The file containing the predefined dunedaq configuration \"{integtest_conf}\" could not be found."
+            fail_msg = f"The file containing the predefined dunedaq configuration \"{integtest_conf}\" could not be found either from its absolute location or in any of the paths in DUNEDAQ_DB_PATH."
             pytest.fail(fail_msg, pytrace=False)
     else:
         dro_map_file = config_dir / "ReadoutMap.data.xml"
