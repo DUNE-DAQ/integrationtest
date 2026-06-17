@@ -24,6 +24,7 @@ from integrationtest.data_classes import (
     integtest_params_for_generated_dunedaq_config,
     integtest_params_for_predefined_dunedaq_config,
 )
+from integrationtest.utility_functions import delete_file
 from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate import (
     generate_readout,
@@ -802,7 +803,6 @@ def cleanup_hdf5_files(request, create_config_files):
     integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
     user_requests_hdf5_file_removal = request.config.getoption("--remove-hdf5-files")
     the_test_requests_hdf5_file_removal = create_config_files.integtest_params.remove_hdf5_files
-    #print(f"AFTER {user_requests_hdf5_file_removal} {the_test_requests_hdf5_file_removal} {len(file_lists)}", flush=True)
 
     # if the user requested that the files should be kept, we can exit early
     if (user_requests_hdf5_file_removal is not None and
@@ -842,16 +842,13 @@ def cleanup_hdf5_files(request, create_config_files):
                 os.system(f"ls -alF {filelist_string}")
 
             for data_file in file_lists["raw"]:
-                data_file.unlink()
+                delete_file(data_file)
             for data_file in file_lists["tpset"]:
-                data_file.unlink()
+                delete_file(data_file)
             for data_file in file_lists["trmon"]:
-                data_file.unlink()
+                delete_file(data_file)
 
             if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
                 print("--------------------")
                 os.system(f"df -h {pathlist_string}")
                 print("============================================")
-
-# somewhere, write down the difference between what is specified in global vars and
-# what is specified in the contents of the integtest config params

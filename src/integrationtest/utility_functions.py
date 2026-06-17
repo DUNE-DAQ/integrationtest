@@ -1,6 +1,7 @@
 import pytest
 import os
 import re
+import pathlib
 from integrationtest.verbosity_helper import IntegtestVerbosityLevels
 
 import functools
@@ -30,3 +31,14 @@ def basic_checks(run_dunerc, caplog, print_test_name: bool = True):
     if len(setup_logs) > 0:
         fail_msg = f"One or more problems were encountered during the setup of the pytest: {setup_logs}"
         pytest.fail(fail_msg, pytrace=False)
+
+
+def delete_file(file: pathlib.PosixPath, verbose: bool = False):
+    try:
+      file.unlink()
+      if verbose:
+          print(f"File {file} was successfully deleted.")
+    except FileNotFoundError:
+      print(f"File {file} could not be deleted because it was not found.")
+    except IsADirectoryError:
+      print(f"File {file} could not be deleted because it is actually a directory.")
