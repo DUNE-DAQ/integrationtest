@@ -46,7 +46,7 @@ def pytest_addoption(parser):
         "--integtest-verbosity",
         action="store",
         default=3,
-        help="The volume of messages that are printed out by the integration test infrastructure",
+        help="This controls the volume of messages that are printed out by the integration test infrastructure (1 is lowest, 6 is highest)",
         required=False
     )
     parser.addoption(
@@ -54,6 +54,13 @@ def pytest_addoption(parser):
         action="store",
         default="",
         help="A phrase that, if found in run control messages, will trigger the printout of all RC messages",
+        required=False
+    )
+    parser.addoption(
+        "--remove-hdf5-files",
+        action="store",
+        default=None,
+        help="Whether to remove HDF5 (data) files when the testing has finished (this over-rides the choice in the integtest). 'always' forces files to be removed, 'never' forces files to be kept.",
         required=False
     )
 
