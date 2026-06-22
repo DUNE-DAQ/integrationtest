@@ -41,7 +41,7 @@ ToDo:  add an explanation of how the emulated TP rate is determined.  e.g. 9x64x
 | tpg_state_collection_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | - |
 | tpreplay_test.py | 0 Hz | - | - |
 | tpstream_writing_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of WIBs=2, StreamEmu TP_rate param=1, TAMakerPrescale=25, TCMakerPrescale=100, calculated 5.1 Hz, observed 4.9 Hz, RWBT=0, RWET=32, RWW=512 nsec |
-| trigger_bitwords_test.py | - | - | - |
+| trigger_bitwords_test.py | 40 Hz trigger rate, RWBT=-62500, RWET=62500 | 30 Hz trigger rate, RWBT=-62500, RWET=62500 | - |
 
 ### Integtests in the _dfmodules_ repo:
 
