@@ -41,10 +41,27 @@ ToDo:  add an explanation of how the emulated TP rate is determined.  e.g. 9x64x
 | tpg_state_collection_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | - |
 | tpreplay_test.py | 0 Hz | - | - |
 | tpstream_writing_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of WIBs=2, StreamEmu TP_rate param=1, TAMakerPrescale=25, TCMakerPrescale=100, calculated 5.1 Hz, observed 4.9 Hz, RWBT=0, RWET=32, RWW=512 nsec |
-| trigger_bitwords_test.py | 40 Hz trigger rate, RWBT=-62500, RWET=62500 | 30 Hz trigger rate, RWBT=-62500, RWET=62500 | - |
+| trigger_bitwords_test.py | typical rate and readout window plus 40 Hz trigger rate, RWBT=-62500, RWET=62500 | typical rates and readout window plus 30 Hz trigger rate, RWBT=-62500, RWET=62500 | - |
 
 ### Integtests in the _dfmodules_ repo:
 
 | Integtest name | RTCM | FakeHSI | Triggers from TPs |
 | --- | :---: | :---: | :---: |
 | disabled_output_test.py | - | - | - |
+| hdf5_compression_test.py | - | - | - |
+| insufficient_disk_space_test.py | - | - | - |
+| large_trigger_record_test.py | - | - | - |
+| max_file_size_test.py | - | - | - |
+| multiple_data_writers_test.py | - | - | - |
+| offline_prod_run_test.py | - | - | - |
+| trmonrequestor_test.py | - | - | - |
+
+### Other integtests:
+
+| Integtest name | RTCM | FakeHSI | Triggers from TPs |
+| --- | :---: | :---: | :---: |
+| crtmodules/crt_frame_builder_test.py | - | - | - |
+| hsilibs/iceberg_real_hsi_test.py | - | - | - |
+| listrev/listrev_test.py | - | - | - |
+| snbmodules/simple_transform_test.py | - | - | - |
+| trigger/change_rate_test.py | - | - | - |
