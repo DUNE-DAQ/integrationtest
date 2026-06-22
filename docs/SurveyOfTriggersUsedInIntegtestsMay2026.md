@@ -2,15 +2,23 @@
 
 ## Introduction
 
-First, here a list of the trigger sources that we typically use in integration/regression tests (and emulated-data running generally):
+Here a list of the trigger sources that we typically use in integration/regression tests (and emulated-data running generally):
 
 * **RandomTriggerCandidateMaker**
     * This software module typically runs in the MLTApplication (along with the _MLTModule_ and the _DataHandlerModule_ that converts TriggerActivity objects into TriggerCandidate objects), and it receives TimeSync messages from the ReadoutApplications so that it knows what DTS (DUNE Timing System) timestamps are currently being processed by the emulated-data system.  It has the ability to produce periodic triggers at a configurable rate, and it uses the knowledge of "detector time" that it gains from the TimeSync messages to provide a useful timestamp in the TriggerCandidate objects that it creates.
+    * Trigger records that are produced from these triggers have a TriggerCandidate type of _kRandom_ assigned to them.
 * **FakeHSIEventGenerator**
-    * This software module typically runs in the XYZ Application, and it receives TimeSync messages from the ReadoutApplications so that it knows what DTS (DUNE Timing System) timestamps are currently being processed by the emulated-data system.  It has the ability to produce periodic triggers at a configurable rate, and it uses the knowledge of "detector time" that it gains from the TimeSync messages to provide a useful timestamp in the TriggerCandidate objects that it creates.
+    * This software module typically runs in the FakeHSIApplication (along with the _HSIDataHandlerModule_), and it receives TimeSync messages from the ReadoutApplications so that it knows what DTS (DUNE Timing System) timestamps are currently being processed by the emulated-data system.  It has the ability to produce periodic triggers at a configurable rate, and it uses the knowledge of "detector time" that it gains from the TimeSync messages to provide a useful timestamp in the TriggerCandidate objects that it creates.
+    * Trigger records that are produced from these triggers have a TriggerCandidate type of _kTiming_ assigned to them.
 * **TriggerActivity and TriggerCandidate objects derived from TriggerPrimitives**
+    * The software modules that produce TAs and TCs run in the ReadoutApps, TriggerApps, and the MLT.
+    * In integration tests, we typically configure the TA and TC makers to simply produce one output trigger object for every N input objects ("prescaling" the input messages).  The baseline values for both the TP->TA and TA->TC prescales are 100.
+    * Trigger records that are produced from these triggers have a TriggerCandidate type of _kPrescale_ assigned to them.
+    * To calculate the expected rate of these triggers, we multiply the number of emulated WIBs in the system by 64 (the number of channels per WIB), and multiply that value by 100 and the SourceEmu TP_rate parameter.  The SourceEmulator code is designed to produce 100 Hz of TPs times its configured "rate" value.
+    * So, for 6 WIBs and a configured SourceEmu TP_rate of 1, the rate of TPs would be (6 * 64 * 100 * 1) = 38400.
+    * Dividing this number by the TA and TC prescale values gives the expected rate of triggers, e.g. 38400 / 100 / 100 = 3.8 Hz.
 
-Next, recall that it is the MLT (Module Level Trigger) that specifies the readout window size for each trigger (TriggerDecision).  It does this based on the configuration information that it was provided.
+The readout windows that are assigned to each trigger can be configured in the MLT or in modules that are upstream of that.
 
 ## Configured trigger types, trigger rates, readout window widths, etc.
 
@@ -28,10 +36,10 @@ ToDo:  add an explanation of how the emulated TP rate is determined.  e.g. 9x64x
 
 | Integtest name | RTCM | FakeHSI | Triggers from TPs |
 | --- | :---: | :---: | :---: |
-| 3ru_1df_multirun_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of WIBs=9, StreamEmu TP_rate param=1, TAMakerPrescale=100, TCMakerPrescale=100, calculated 5.8 Hz, observed 5.5 Hz, RWBT=0, RWET=32, RWW=512 nsec |
-| 3ru_3df_multirun_test.py | 3 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of WIBs=6, StreamEmu TP_rate param=1, TAMakerPrescale=100, TCMakerPrescale=100, calculated 3.8 Hz, observed 3.6 Hz, RWBT=0, RWET=32, RWW=512 nsec |
+| 3ru_1df_multirun_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of WIBs=9, SourceEmu TP_rate param=1, TAMakerPrescale=100, TCMakerPrescale=100, calculated 5.8 Hz, observed 5.5 Hz, RWBT=0, RWET=32, RWW=512 nsec |
+| 3ru_3df_multirun_test.py | 3 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of WIBs=6, SourceEmu TP_rate param=1, TAMakerPrescale=100, TCMakerPrescale=100, calculated 3.8 Hz, observed 3.6 Hz, RWBT=0, RWET=32, RWW=512 nsec |
 | disabled_tpg_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | 3 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec | - |
-| example_system_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | 3 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec | number of WIBs=4 or 8, StreamEmu TP_rate param=1, TAMakerPrescale=1000, TCMakerPrescale=100, observed 0.25 or 0.5 Hz, RWBT=0, RWET=32, RWW=512 nsec |
+| example_system_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | 3 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec | number of WIBs=4 or 8, SourceEmu TP_rate param=1, TAMakerPrescale=1000, TCMakerPrescale=100, observed 0.25 or 0.5 Hz, RWBT=0, RWET=32, RWW=512 nsec |
 | fake_data_producer_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=2001, RWW=64.02 usec | - | - |
 | long_window_readout_test.py | 0.05 Hz trigger rate, RWBT=-100000000, RWET=1000000, RWW=1.62 sec | - | - |
 | minimal_system_quick_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | - |
@@ -40,7 +48,7 @@ ToDo:  add an explanation of how the emulated TP rate is determined.  e.g. 9x64x
 | small_footprint_quick_test.py | - | 1 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec  | - |
 | tpg_state_collection_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | - |
 | tpreplay_test.py | 0 Hz | - | - |
-| tpstream_writing_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of WIBs=2, StreamEmu TP_rate param=1, TAMakerPrescale=25, TCMakerPrescale=100, calculated 5.1 Hz, observed 4.9 Hz, RWBT=0, RWET=32, RWW=512 nsec |
+| tpstream_writing_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of WIBs=2, SourceEmu TP_rate param=1, TAMakerPrescale=25, TCMakerPrescale=100, calculated 5.1 Hz, observed 4.9 Hz, RWBT=0, RWET=32, RWW=512 nsec |
 | trigger_bitwords_test.py | typical rate and readout window plus 40 Hz trigger rate, RWBT=-62500, RWET=62500 | typical rates and readout window plus 30 Hz trigger rate, RWBT=-62500, RWET=62500 | - |
 
 ### Integtests in the _dfmodules_ repo:
