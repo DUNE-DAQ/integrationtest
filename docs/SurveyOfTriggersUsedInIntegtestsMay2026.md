@@ -1,4 +1,4 @@
-# Survey of trigger and readout window configurations that are used in existing integtests, May 2026
+# Survey of trigger and readout window configurations that are used in existing integtests, June 2026
 
 ## Introduction
 
@@ -7,6 +7,7 @@ First, here a list of the trigger sources that we typically use in integration/r
 * **RandomTriggerCandidateMaker**
     * This software module typically runs in the MLTApplication (along with the _MLTModule_ and the _DataHandlerModule_ that converts TriggerActivity objects into TriggerCandidate objects), and it receives TimeSync messages from the ReadoutApplications so that it knows what DTS (DUNE Timing System) timestamps are currently being processed by the emulated-data system.  It has the ability to produce periodic triggers at a configurable rate, and it uses the knowledge of "detector time" that it gains from the TimeSync messages to provide a useful timestamp in the TriggerCandidate objects that it creates.
 * **FakeHSIEventGenerator**
+    * This software module typically runs in the XYZ Application, and it receives TimeSync messages from the ReadoutApplications so that it knows what DTS (DUNE Timing System) timestamps are currently being processed by the emulated-data system.  It has the ability to produce periodic triggers at a configurable rate, and it uses the knowledge of "detector time" that it gains from the TimeSync messages to provide a useful timestamp in the TriggerCandidate objects that it creates.
 * **TriggerActivity and TriggerCandidate objects derived from TriggerPrimitives**
 
 Next, recall that it is the MLT (Module Level Trigger) that specifies the readout window size for each trigger (TriggerDecision).  It does this based on the configuration information that it was provided.
@@ -27,19 +28,19 @@ ToDo:  add an explanation of how the emulated TP rate is determined.  e.g. 9x64x
 
 | Integtest name | RTCM | FakeHSI | Triggers from TPs |
 | --- | :---: | :---: | :---: |
-| 3ru_1df_multirun_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of WIBs=9, StreamEmu TP_rate param=1, TAMakerPrescale=100, TCMakerPrescale=100, effective 5.5 Hz, RWBT=0, RWET=32, RWW=512 nsec |
-| 3ru_3df_multirun_test.py | 3 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of WIBs=6, StreamEmu TP_rate param=1, TAMakerPrescale=100, TCMakerPrescale=100, effective 3.6 Hz, RWBT=0, RWET=32, RWW=512 nsec |
+| 3ru_1df_multirun_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of WIBs=9, StreamEmu TP_rate param=1, TAMakerPrescale=100, TCMakerPrescale=100, calculated 5.8 Hz, observed 5.5 Hz, RWBT=0, RWET=32, RWW=512 nsec |
+| 3ru_3df_multirun_test.py | 3 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of WIBs=6, StreamEmu TP_rate param=1, TAMakerPrescale=100, TCMakerPrescale=100, calculated 3.8 Hz, observed 3.6 Hz, RWBT=0, RWET=32, RWW=512 nsec |
 | disabled_tpg_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | 3 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec | - |
-| example_system_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | 3 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec | number of WIBs=4 or 8, StreamEmu TP_rate param=1, TAMakerPrescale=1000, TCMakerPrescale=100, effective 0.25 or 0.5 Hz, RWBT=0, RWET=32, RWW=512 nsec |
+| example_system_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | 3 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec | number of WIBs=4 or 8, StreamEmu TP_rate param=1, TAMakerPrescale=1000, TCMakerPrescale=100, observed 0.25 or 0.5 Hz, RWBT=0, RWET=32, RWW=512 nsec |
 | fake_data_producer_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=2001, RWW=64.02 usec | - | - |
 | long_window_readout_test.py | 0.05 Hz trigger rate, RWBT=-100000000, RWET=1000000, RWW=1.62 sec | - | - |
 | minimal_system_quick_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | - |
-| readout_type_scan_test.py | - | - | - |
+| readout_type_scan_test.py | 1 Hz trigger rate, various readout window widths | - | various rates and readout window widths |
 | sample_ehn1_multihost_test.py | - | - | - |
 | small_footprint_quick_test.py | - | 1 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec  | - |
 | tpg_state_collection_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | - |
 | tpreplay_test.py | 0 Hz | - | - |
-| tpstream_writing_test.py | - | - | - |
+| tpstream_writing_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | number of WIBs=2, StreamEmu TP_rate param=1, TAMakerPrescale=25, TCMakerPrescale=100, calculated 5.1 Hz, observed 4.9 Hz, RWBT=0, RWET=32, RWW=512 nsec |
 | trigger_bitwords_test.py | - | - | - |
 
 ### Integtests in the _dfmodules_ repo:
