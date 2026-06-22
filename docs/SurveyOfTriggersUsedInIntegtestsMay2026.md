@@ -1,4 +1,4 @@
-# Survey of trigger and readout window configurations that are used in existing integtests, June 2026
+# Survey of trigger and readout window configurations that are used in existing integtests, Summer 2026
 
 ## Introduction
 
@@ -55,21 +55,21 @@ ToDo:  add an explanation of how the emulated TP rate is determined.  e.g. 9x64x
 
 | Integtest name | RTCM | FakeHSI | Triggers from TPs |
 | --- | :---: | :---: | :---: |
-| disabled_output_test.py | - | - | - |
-| hdf5_compression_test.py | - | - | - |
-| insufficient_disk_space_test.py | - | - | - |
-| large_trigger_record_test.py | - | - | - |
-| max_file_size_test.py | - | - | - |
-| multiple_data_writers_test.py | - | - | - |
-| offline_prod_run_test.py | - | - | - |
-| trmonrequestor_test.py | - | - | - |
+| disabled_output_test.py | | | |
+| hdf5_compression_test.py | | | |
+| insufficient_disk_space_test.py | | | |
+| large_trigger_record_test.py | | | |
+| max_file_size_test.py | | | |
+| multiple_data_writers_test.py | | | |
+| offline_prod_run_test.py | | | |
+| trmonrequestor_test.py | | | |
 
 ### Other integtests:
 
 | Integtest name | RTCM | FakeHSI | Triggers from TPs |
 | --- | :---: | :---: | :---: |
-| crtmodules/crt_frame_builder_test.py | - | - | - |
-| hsilibs/iceberg_real_hsi_test.py | - | - | - |
-| listrev/listrev_test.py | - | - | - |
-| snbmodules/simple_transform_test.py | - | - | - |
-| trigger/change_rate_test.py | - | - | - |
+| crtmodules/crt_frame_builder_test.py | | | |
+| hsilibs/iceberg_real_hsi_test.py | | | |
+| listrev/listrev_test.py | | | |
+| snbmodules/simple_transform_test.py | | | |
+| trigger/change_rate_test.py | | | |
