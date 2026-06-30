@@ -30,8 +30,6 @@ To help save space in the table cells, the following abbreviations are used:
 * RWET - readout window end ticks - this value determines the end of the readout window.  It is added to the trigger time to determine the end of the readout window.
 * RWW - readout window width, in either DTS clock ticks, wallclock time, or both.
 
-ToDo:  add an explanation of how the emulated TP rate is determined.  e.g. 9x64x100 = 57,600 Hz of TPs; 57600/100/100 = 5.8 Hz of kPrescale triggers
-
 ### Integtests in the _daqsystemtest_ repo:
 
 | Integtest name | RTCM | FakeHSI | Triggers from TPs |
@@ -44,7 +42,7 @@ ToDo:  add an explanation of how the emulated TP rate is determined.  e.g. 9x64x
 | long_window_readout_test.py | 0.05 Hz trigger rate, RWBT=-100000000, RWET=1000000, RWW=1.62 sec | - | - |
 | minimal_system_quick_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | - |
 | readout_type_scan_test.py | 1 Hz trigger rate, various readout window widths | - | various rates and readout window widths |
-| sample_ehn1_multihost_test.py | - | - | - |
+| sample_ehn1_multihost_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | 3 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec | number of WIBs=4, SourceEmu TP_rate param=1, TAMakerPrescale=1000, TCMakerPrescale=100, observed 0.25 Hz, RWBT=0, RWET=32, RWW=512 nsec |
 | small_footprint_quick_test.py | - | 1 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec  | - |
 | tpg_state_collection_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | - |
 | tpreplay_test.py | 0 Hz | - | - |
