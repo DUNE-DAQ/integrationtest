@@ -53,14 +53,14 @@ To help save space in the table cells, the following abbreviations are used:
 
 | Integtest name | RTCM | FakeHSI | Triggers from TPs |
 | --- | :---: | :---: | :---: |
-| disabled_output_test.py | | | |
-| hdf5_compression_test.py | | | |
-| insufficient_disk_space_test.py | | | |
-| large_trigger_record_test.py | | | |
-| max_file_size_test.py | | | |
-| multiple_data_writers_test.py | | | |
-| offline_prod_run_test.py | | | |
-| trmonrequestor_test.py | | | |
+| disabled_output_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | - |
+| hdf5_compression_test.py| - | 10 Hz trigger rate, RWBT=-120000, RWET=1000, RWW=1.94 msec | - |
+| insufficient_disk_space_test.py | 0.2 Hz trigger rate, RWBT=-9000000, RWET=1000000, RWW=160 msec | - | - |
+| large_trigger_record_test.py | 0.06 Hz trigger rate, RWBT=-10000000, RWET=1000000, RWW=176 msec | - | - |
+| max_file_size_test.py | - | 10 Hz trigger rate, RWBT=-52000, RWET=1000, RWW=848 usec | - |
+| multiple_data_writers_test.py | - | 10 Hz trigger rate, RWBT=-52000, RWET=1000, RWW=848 usec | - |
+| offline_prod_run_test.py | - | 1 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec | - |
+| trmonrequestor_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | - | - |
 
 ### Other integtests:
 
