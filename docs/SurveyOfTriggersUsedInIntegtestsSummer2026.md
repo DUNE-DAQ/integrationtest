@@ -69,8 +69,8 @@ To help save space in the table cells, the following abbreviations are used:
 
 | Integtest name | RTCM | FakeHSI | Triggers from TPs |
 | --- | :---: | :---: | :---: |
-| crtmodules/crt_frame_builder_test.py | | | |
-| hsilibs/iceberg_real_hsi_test.py | | | |
-| listrev/listrev_test.py | | | |
-| snbmodules/simple_transform_test.py | | | |
-| trigger/change_rate_test.py | | | |
+| crtmodules/crt_frame_builder_test.py | 1 Hz trigger rate, RWBT=-2000, RWET=5, RWW=32.1 usec | 3 Hz trigger rate, RWBT=-3000, RWET=1001, RWW=64.02 usec | - |
+| hsilibs/iceberg_real_hsi_test.py | this test needs to be updated for v5 configurations | | |
+| listrev/listrev_test.py | this test does not use DUNE DAQ triggers | | |
+| snbmodules/simple_transform_test.py | - | - | this test appears to use an SNB trigger (kSupernova) with RWBT=0, RWET=200704, RWW=3.2 msec |
+| trigger/change_rate_test.py | 2, 1, 0.1, and 0.01 Hz trigger rates, RWBT=-1000, RWET=1001, RWW=32 usec | - | - |
