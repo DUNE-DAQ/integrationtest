@@ -70,6 +70,9 @@ class integtest_param_base_class:
     # whether the HDF5 files should be deleted at the end of the test
     remove_hdf5_files: bool = False
 
+    # command-line arguments to be passed to run control
+    dunerc_cmd_args: list[str] = field(default_factory=list)
+
 @dataclass
 class integtest_params_for_generated_dunedaq_config(integtest_param_base_class):
     # *** Parameters that are needed for both generated and predefined configs,
