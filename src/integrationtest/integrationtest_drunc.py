@@ -24,6 +24,7 @@ from integrationtest.data_classes import (
     integtest_params_for_generated_dunedaq_config,
     integtest_params_for_predefined_dunedaq_config,
 )
+from integrationtest.utility_functions import delete_file
 from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate import (
     generate_readout,
@@ -129,63 +130,19 @@ def pytest_generate_tests(metafunc):
             total_paramtrization_combinations *= len(metafunc.module.dunerc_command_list)
 
 @pytest.fixture(scope="module")
-def process_manager_type(request, tmp_path_factory):
+def process_manager_type(request):
+    """Simply return the process manager type that was requested
+    """
     yield request.param
 
-@pytest.fixture(scope="module")
-def check_system_resources(request):
-    """Check that the system resources (CPU, Memory) are sufficient for the test
-    The required and recommended resources are taken from the
-    `resource_validator` variable in the global scope of the test
-    module, which should be an instance of ResourceValidator. If the
-    required resources are not present, then the test is skipped. If
-    the recommended resources are not present, then a warning is printed
-    """
-    skip_resource_checks = request.config.getoption("--skip-resource-checks")
-    integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
-
-    # print out a couple of blank lines to help with formatting
-    if integtest_verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings:
-        print("", flush=True)
-        print("", flush=True)
-
-    resval = getattr(request.module, "resource_validator", ResourceValidator())
-
-    if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
-        resval_debug_string = resval.get_debug_string()
-        print(resval_debug_string)
-
-    if not resval.required_resources_are_present:
-        resval_report_string = resval.get_required_resources_report()
-        print(f"\n\N{LARGE YELLOW CIRCLE} {resval_report_string}")
-        if not skip_resource_checks:
-            # 16-Feb-2026, KAB: discard all of the test items except the
-            # first one so that we only get one "skip" output message.
-            del request.session.items[1:]
-            pytest.skip(f"\n\N{LARGE YELLOW CIRCLE} {resval_report_string}")
-    if not resval.recommended_resources_are_present:
-        if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
-            resval_report_string = resval.get_recommended_resources_report()
-            print(f"\n*** Note: {resval_report_string}")
-
-    yield True
-
-    # 16-Feb-2026, KAB: added a printout for recommended resources after the "yield"
-    # statement so that it gets printed out at the end of the output that the user sees.
-    if not resval.recommended_resources_are_present:
-        if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
-            resval_report_string = resval.get_recommended_resources_report()
-            print(f"\n*** Note: {resval_report_string}")
 
 @pytest.fixture(scope="module")
 def create_config_files(request, tmp_path_factory, check_system_resources):
     """Run the confgen to produce the configuration json files
 
-    The name of the module to use is taken (indirectly) from the
-    `base_oks_config` variable in the global scope of the test module,
-    and the arguments for the confgen are taken from the
-    `confgen_arguments` variable in the same place. These variables
-    are converted into parameters for this fixture by the
+    The parameters for the DUNE-DAQ configuration are taken from the
+    `confgen_arguments` variable in the global scope of the test module.
+    This variable is converted into parameters for this fixture by the
     pytest_generate_tests function, to allow multiple confgens to be
     produced by one pytest module
 
@@ -423,9 +380,9 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
             pass
 
     result = CreateConfigResult(
-        config=integtest_params,
-        config_dir=config_dir,
-        config_file=config_db,
+        integtest_params=integtest_params,
+        dunedaq_config_dir=config_dir,
+        dunedaq_config_file=config_db,
         log_file=logfile,
         data_dirs=rawdata_dirs,
         tpstream_data_dirs=tpstream_dirs,
@@ -441,7 +398,7 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
 
 
 @pytest.fixture(scope="module")
-def run_dunerc(request, create_config_files, process_manager_type, tmp_path_factory):
+def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_files, tmp_path_factory):
     """Run drunc with the OKS DB files created by `create_config_files`. The
     commands specified by the `dunerc_command_list` variable in the
     test module are executed. If `dunerc_command_list`'s items are
@@ -455,8 +412,8 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
 
     if no_integtest_connsvc and \
-       isinstance(create_config_files.config, integtest_params_for_generated_dunedaq_config):
-        create_config_files.config.connsvc_control = ConnSvcControl.NONE
+       isinstance(create_config_files.integtest_params, integtest_params_for_generated_dunedaq_config):
+        create_config_files.integtest_params.connsvc_control = ConnSvcControl.NONE
 
     run_dir = tmp_path_factory.mktemp("run")
 
@@ -510,36 +467,36 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     # start the Connectivity Service, if requested (only supported for generated dune-daq configs, for now)
     connsvc_obj = None
     if (
-        isinstance(create_config_files.config, integtest_params_for_generated_dunedaq_config)
-        and create_config_files.config.connsvc_control == ConnSvcControl.INTEGRATIONTEST
+        isinstance(create_config_files.integtest_params, integtest_params_for_generated_dunedaq_config)
+        and create_config_files.integtest_params.connsvc_control == ConnSvcControl.INTEGRATIONTEST
     ):
         # start connsvc
         if integtest_verbosity_level >= IntegtestVerbosityLevels.full_output:
             print(
-                f"Starting Connectivity Service on port {create_config_files.config.connsvc_port}"
+                f"Starting Connectivity Service on port {create_config_files.integtest_params.connsvc_port}"
             )
 
         connsvc_env = os.environ.copy()
-        if create_config_files.config.connsvc_debug_level is not None:
+        if create_config_files.integtest_params.connsvc_debug_level is not None:
             connsvc_env["CONNECTION_FLASK_DEBUG"] = str(
-                create_config_files.config.connsvc_debug_level
+                create_config_files.integtest_params.connsvc_debug_level
             )
 
         connsvc_log = open(
             run_dir
-            / f"log_{getpass.getuser()}_{create_config_files.config.daq_session_name}_connectivity-service.txt",
+            / f"log_{getpass.getuser()}_{create_config_files.integtest_params.daq_session_name}_connectivity-service.txt",
             "w",
         )
         connsvc_obj = subprocess.Popen(
-            f"gunicorn -b 0.0.0.0:{create_config_files.config.connsvc_port} --workers=1 --worker-class=gthread --threads=2 --timeout 5000000000 --log-level=info connectivityserver.connectionflask:app".split(),
+            f"gunicorn -b 0.0.0.0:{create_config_files.integtest_params.connsvc_port} --workers=1 --worker-class=gthread --threads=2 --timeout 5000000000 --log-level=info connectivityserver.connectionflask:app".split(),
             stdout=connsvc_log,
             stderr=connsvc_log,
             env=connsvc_env,
         )
 
-    elif create_config_files.config.connsvc_debug_level is not None:
-        set_session_env_var(str(create_config_files.config_file), create_config_files.config.config_session_name,
-                            "CONNECTION_FLASK_DEBUG", create_config_files.config.connsvc_debug_level, overwrite=True)
+    elif create_config_files.integtest_params.connsvc_debug_level is not None:
+        set_session_env_var(str(create_config_files.dunedaq_config_file), create_config_files.integtest_params.config_session_name,
+                            "CONNECTION_FLASK_DEBUG", create_config_files.integtest_params.connsvc_debug_level, overwrite=True)
 
     dunerc = request.config.getoption("--dunerc-path")
     if dunerc is None:
@@ -582,13 +539,13 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         temp_suffix = ".temp_saved"
         now = time.time()
         for file_obj in rawdata_dir.glob(
-            f"{create_config_files.config.op_env}_raw*.hdf5"
+            f"{create_config_files.integtest_params.op_env}_raw*.hdf5"
         ):
             print(f"Renaming raw data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
         for file_obj in rawdata_dir.glob(
-            f"{create_config_files.config.op_env}_raw*.hdf5{temp_suffix}"
+            f"{create_config_files.integtest_params.op_env}_raw*.hdf5{temp_suffix}"
         ):
             modified_time = file_obj.stat().st_mtime
             if (now - modified_time) > 3600:
@@ -602,13 +559,13 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         temp_suffix = ".temp_saved"
         now = time.time()
         for file_obj in tpset_dir.glob(
-            f"{create_config_files.config.op_env}_tp*.hdf5"
+            f"{create_config_files.integtest_params.op_env}_tp*.hdf5"
         ):
             print(f"Renaming TP data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
         for file_obj in tpset_dir.glob(
-            f"{create_config_files.config.op_env}_tp*.hdf5{temp_suffix}"
+            f"{create_config_files.integtest_params.op_env}_tp*.hdf5{temp_suffix}"
         ):
             modified_time = file_obj.stat().st_mtime
             if (now - modified_time) > 3600:
@@ -622,13 +579,13 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
         temp_suffix = ".temp_saved"
         now = time.time()
         for file_obj in trmon_dir.glob(
-            f"{create_config_files.config.op_env}_trmon*.hdf5"
+            f"{create_config_files.integtest_params.op_env}_trmon*.hdf5"
         ):
             print(f"Renaming TRMon data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
         for file_obj in trmon_dir.glob(
-            f"{create_config_files.config.op_env}_trmon*.hdf5{temp_suffix}"
+            f"{create_config_files.integtest_params.op_env}_trmon*.hdf5{temp_suffix}"
         ):
             modified_time = file_obj.stat().st_mtime
             if (now - modified_time) > 3600:
@@ -644,9 +601,9 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     # 25-Mar-2026, KAB: use subprocess.Popen to manage the run control session so that we can
     # capture the console output and pass it back to the user for inspection and validation.
     popen_command_list = [dunerc] + create_config_files.config.dunerc_cmd_args + dunerc_option_strings \
-        + [process_manager_type] + [str(create_config_files.config_file)] \
-        + [str(create_config_files.config.config_session_name)] \
-        + [str(create_config_files.config.daq_session_name)] + run_control_commands
+        + [process_manager_type] + [str(create_config_files.dunedaq_config_file)] \
+        + [str(create_config_files.integtest_params.config_session_name)] \
+        + [str(create_config_files.integtest_params.daq_session_name)] + run_control_commands
     rc_process = subprocess.Popen(
         popen_command_list,
         stdout=subprocess.PIPE,
@@ -735,32 +692,38 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
             pass
         connsvc_obj.kill()
 
-    if create_config_files.config.attempt_cleanup:
+    if create_config_files.integtest_params.attempt_cleanup:
         print(
             "Checking for remaining gunicorn and drunc-controller processes", flush=True
         )
         subprocess.run(["killall", "gunicorn", "drunc-controller"])
 
-    result.confgen_config = create_config_files.config
-    result.config_session_name = create_config_files.config.config_session_name
-    result.daq_session_name = create_config_files.config.daq_session_name
+    if number_of_lines_printed_to_the_console > 0:
+        print("---------- DRUNC Session END ----------", flush=True)
+        print("", flush=True)
+    elif integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_boot_terminate:
+        print("", flush=True)
+
+    result.confgen_config = create_config_files.integtest_params
+    result.config_session_name = create_config_files.integtest_params.config_session_name
+    result.daq_session_name = create_config_files.integtest_params.daq_session_name
     result.dunerc_commands = run_control_commands
     result.run_dir = run_dir
-    result.config_dir = create_config_files.config_dir
+    result.dunedaq_config_dir = create_config_files.dunedaq_config_dir
     result.data_files = []
     for rawdata_dir in rawdata_dirs:
         result.data_files += list(
-            rawdata_dir.glob(f"{create_config_files.config.op_env}_raw_*.hdf5")
+            rawdata_dir.glob(f"{create_config_files.integtest_params.op_env}_raw_*.hdf5")
         )
     result.tpset_files = []
     for tpset_dir in tpset_dirs:
         result.tpset_files += list(
-            tpset_dir.glob(f"{create_config_files.config.op_env}_tp_*.hdf5")
+            tpset_dir.glob(f"{create_config_files.integtest_params.op_env}_tp_*.hdf5")
         )
     result.trmon_files = []
     for trmon_dir in trmon_dirs:
         result.trmon_files += list(
-            trmon_dir.glob(f"{create_config_files.config.op_env}_trmon_*.hdf5")
+            trmon_dir.glob(f"{create_config_files.integtest_params.op_env}_trmon_*.hdf5")
         )
     result.log_files = list(run_dir.glob("log_*.txt")) + list(run_dir.glob("log_*.log"))
     result.opmon_files = list(run_dir.glob(f"info*{result.daq_session_name}*.json"))
@@ -768,9 +731,125 @@ def run_dunerc(request, create_config_files, process_manager_type, tmp_path_fact
     # information in fine-tuning the allowed ranges in time-based checking of test results.
     result.daq_session_overall_time = time_after - time_before
     result.verbosity_helper = VerbosityHelper(integtest_verbosity_level)
-    if number_of_lines_printed_to_the_console > 0:
-        print("---------- DRUNC Session END ----------", flush=True)
-        print("", flush=True)
-    elif integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_boot_terminate:
-        print("", flush=True)
+
+    # pass the names of the HDF5 files to the 'cleanup' fixture
+    cleanup_hdf5_files["raw"] = result.data_files
+    cleanup_hdf5_files["tpset"] = result.tpset_files
+    cleanup_hdf5_files["trmon"] = result.trmon_files
+
     yield result
+
+
+import functools
+print = functools.partial(print, flush=True)  # always flush print() output
+
+@pytest.fixture(scope="module")
+def check_system_resources(request):
+    """Check that the system resources (CPU, Memory) are sufficient for the test
+    The required and recommended resources are taken from the
+    `resource_validator` variable in the global scope of the test
+    module, which should be an instance of ResourceValidator. If the
+    required resources are not present, then the test is skipped. If
+    the recommended resources are not present, then a warning is printed
+    """
+    skip_resource_checks = request.config.getoption("--skip-resource-checks")
+    integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
+
+    # print out a couple of blank lines to help with formatting
+    if integtest_verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings:
+        print("", flush=True)
+        print("", flush=True)
+
+    resval = getattr(request.module, "resource_validator", ResourceValidator())
+
+    if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+        resval_debug_string = resval.get_debug_string()
+        print(resval_debug_string)
+
+    if not resval.required_resources_are_present:
+        resval_report_string = resval.get_required_resources_report()
+        print(f"\n\N{LARGE YELLOW CIRCLE} {resval_report_string}")
+        if not skip_resource_checks:
+            # 16-Feb-2026, KAB: discard all of the test items except the
+            # first one so that we only get one "skip" output message.
+            del request.session.items[1:]
+            pytest.skip(f"\n\N{LARGE YELLOW CIRCLE} {resval_report_string}")
+    if not resval.recommended_resources_are_present:
+        if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+            resval_report_string = resval.get_recommended_resources_report()
+            print(f"\n*** Note: {resval_report_string}")
+
+    yield True
+
+    # 16-Feb-2026, KAB: added a printout for recommended resources after the "yield"
+    # statement so that it gets printed out at the end of the output that the user sees.
+    if not resval.recommended_resources_are_present:
+        if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+            resval_report_string = resval.get_recommended_resources_report()
+            print(f"\n*** Note: {resval_report_string}")
+
+
+@pytest.fixture(scope="module")
+def cleanup_hdf5_files(request, create_config_files):
+    """Delete the HDF5 files that are produced by the test, if requested
+    """
+
+    # nothing to be done during setup; all of the work happens during teardown
+    # so, we simply return here
+    # we return a dictionary that run_dunerc can fill with the names of the files
+    file_lists = {}
+    yield file_lists
+
+    # here is where the work gets done...
+    integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
+    user_requests_hdf5_file_removal = request.config.getoption("--remove-hdf5-files")
+    the_test_requests_hdf5_file_removal = create_config_files.integtest_params.remove_hdf5_files
+
+    # if the user requested that the files should be kept, we can exit early
+    if (user_requests_hdf5_file_removal is not None and
+        ("false" in user_requests_hdf5_file_removal.lower() or
+         "never" in user_requests_hdf5_file_removal.lower())):
+        return
+
+    # if either of the integtest writer or the user running the test requested that the HDF5 files
+    # be deleted at the end of the test, do that.
+    if ((user_requests_hdf5_file_removal is not None and
+         ("true" in user_requests_hdf5_file_removal.lower() or
+          "always" in user_requests_hdf5_file_removal.lower())) or
+        the_test_requests_hdf5_file_removal):
+        pathlist_string = ""
+        filelist_string = ""
+        for data_file in file_lists["raw"]:
+            filelist_string += " " + str(data_file)
+            if str(data_file.parent) not in pathlist_string:
+                pathlist_string += " " + str(data_file.parent)
+        for data_file in file_lists["tpset"]:
+            filelist_string += " " + str(data_file)
+            if str(data_file.parent) not in pathlist_string:
+                pathlist_string += " " + str(data_file.parent)
+        for data_file in file_lists["trmon"]:
+            filelist_string += " " + str(data_file)
+            if str(data_file.parent) not in pathlist_string:
+                pathlist_string += " " + str(data_file.parent)
+
+        if pathlist_string and filelist_string:
+            if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+                print("============================================")
+                print("Listing the hdf5 files before deleting them:")
+                print("============================================")
+
+                os.system(f"df -h {pathlist_string}")
+                print("--------------------")
+                os.system(f"ls -alF {filelist_string}")
+
+            for data_file in file_lists["raw"]:
+                delete_file(data_file)
+            for data_file in file_lists["tpset"]:
+                delete_file(data_file)
+            for data_file in file_lists["trmon"]:
+                delete_file(data_file)
+
+            if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+                print("--------------------")
+                os.system(f"df -h {pathlist_string}")
+                print("============================================")

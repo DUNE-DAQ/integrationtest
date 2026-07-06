@@ -67,6 +67,9 @@ class integtest_param_base_class:
     connsvc_port: int = 0
     connsvc_debug_level: int = None
 
+    # whether the HDF5 files should be deleted at the end of the test
+    remove_hdf5_files: bool = False
+
     # command-line arguments to be passed to run control
     dunerc_cmd_args: list[str] = field(default_factory=list)
 
@@ -110,9 +113,9 @@ class integtest_params_for_predefined_dunedaq_config(integtest_param_base_class)
 
 @dataclass
 class CreateConfigResult:
-    config: integtest_param_base_class
-    config_dir: str
-    config_file: str
+    integtest_params: integtest_param_base_class
+    dunedaq_config_dir: str
+    dunedaq_config_file: str
     log_file: str
     data_dirs: list[str]
     tpstream_data_dirs: list[str]
