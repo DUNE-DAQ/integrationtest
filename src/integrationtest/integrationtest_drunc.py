@@ -600,8 +600,9 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
     time_before = time.time()
     # 25-Mar-2026, KAB: use subprocess.Popen to manage the run control session so that we can
     # capture the console output and pass it back to the user for inspection and validation.
-    popen_command_list = [dunerc] + dunerc_option_strings + [process_manager_type] \
-        + [str(create_config_files.dunedaq_config_file)] + [str(create_config_files.integtest_params.config_session_name)] \
+    popen_command_list = [dunerc] + create_config_files.integtest_params.dunerc_cmd_args \
+        + dunerc_option_strings + [process_manager_type] + [str(create_config_files.dunedaq_config_file)] \
+        + [str(create_config_files.integtest_params.config_session_name)] \
         + [str(create_config_files.integtest_params.daq_session_name)] + run_control_commands
     rc_process = subprocess.Popen(
         popen_command_list,
