@@ -841,11 +841,11 @@ def trace_debug_settings(request, create_config_files):
         # (we trust the logic above to copy a user-environment TRACE_FILE into the OKS config)
         trace_file_value = get_session_env_var(str(create_config_files.dunedaq_config_file),
                                                create_config_files.integtest_params.config_session_name,
-                                               "TRACE_FILE")
+                                               "TRACE_FILE", quiet=True)
 
         # if not, then enable it by creating a temporary TRACE_FILE
         if trace_file_value is None:
-            trace_file_value = create_config_files.dunedaq_config_dir + "/integtest_dunedaq.trace"
+            trace_file_value = str(create_config_files.dunedaq_config_dir) + "/integtest_dunedaq.trace"
             set_session_env_var(str(create_config_files.dunedaq_config_file),
                                 create_config_files.integtest_params.config_session_name,
                                 "TRACE_FILE", trace_file_value, overwrite=True)
