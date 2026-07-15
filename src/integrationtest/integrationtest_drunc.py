@@ -876,11 +876,12 @@ def trace_debug_settings(request, create_config_files):
                             slow_mask = tokens[3]
                             break
 
-                    if "fast" in trace_type:
+                    lc_trace_type = trace_type.lower()
+                    if "fast" in lc_trace_type:
                         subprocess.run(["trace_cntl", "-n", key, "lvlset", str(enable_mask), "0", "0"], check=True)
                         subprocess.run(["trace_cntl", "modeM", "1"], check=True)
                         restore_trace_settings.append(["trace_cntl", "-n", key, "lvlmskM", fast_mask])
-                    if "slow" in trace_type:
+                    if "slow" in lc_trace_type:
                         subprocess.run(["trace_cntl", "-n", key, "lvlset", "0", str(enable_mask), "0"], check=True)
                         subprocess.run(["trace_cntl", "modeS", "1"], check=True)
                         restore_trace_settings.append(["trace_cntl", "-n", key, "lvlmskS", slow_mask])
