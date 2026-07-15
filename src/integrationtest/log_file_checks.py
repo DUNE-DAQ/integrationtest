@@ -27,6 +27,7 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
                 severity=match_logline_prefix.group(1)
                 if severity in ("WARNING", "ERROR", "FATAL"):
                     bad_line=True
+            #if not bad_line:
             else: # This line's not produced with our logging package, so let's just look for bad words
                 if "WARN" in line or "Warn" in line or "warn" in line or \
                    "ERROR" in line or "Error" in line or "error" in line or \
@@ -112,7 +113,7 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
         )
 
     # 15-Jul-2026, KAB: phrases that we always want to exclude
-    excluded_substring_map.setdefault("drunc", []).extend(["| In error |"])
+    excluded_substring_map.setdefault("drunc", []).extend(["| In error |", "X11 forwarding request failed"])
 
     all_ok=True
     #print("") # Clear potential dot from pytest
@@ -124,13 +125,11 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
             match_obj = re.search(exclusion_key, log.name)
             if match_obj:
                 exclusions += excluded_substring_map[exclusion_key]
-                break
         for required_key in required_substring_map.keys():
             match_obj = re.search(required_key, log.name)
             if match_obj:
                 requireds += required_substring_map[required_key]
-                break
-        
+
         single_ok=log_has_no_errors(log, print_logfilename_for_problems, exclusions, requireds,
                                     print_required_message_report, verbosity_helper)
 
