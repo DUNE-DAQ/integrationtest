@@ -111,6 +111,9 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
             ["RAN:", "LogLevel=error"]
         )
 
+    # 15-Jul-2026, KAB: phrases that we always want to exclude
+    excluded_substring_map.setdefault("drunc", []).extend(["| In error |"])
+
     all_ok=True
     #print("") # Clear potential dot from pytest
     for log in log_file_names:
