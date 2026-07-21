@@ -112,8 +112,9 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
             ["RAN:", "LogLevel=error"]
         )
 
-    # 15-Jul-2026, KAB: phrases that we always want to exclude
-    excluded_substring_map.setdefault("drunc", []).extend(["| In error |", "X11 forwarding request failed"])
+    # 21-Jul-2026, KAB: phrases that we always want to exclude
+    excluded_substring_map.setdefault("drunc", []).extend(["Substate.*In error.*Endpoint"])
+    excluded_substring_map.setdefault(r".*", []).extend(["X11 forwarding setup failed"])
 
     all_ok=True
     #print("") # Clear potential dot from pytest
