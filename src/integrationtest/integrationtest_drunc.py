@@ -643,7 +643,9 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
 
         # check for errors and warnings for all verbosity levels
         if should_be_printed == False:
-            if ("error" in line.lower() and (not "In error" in line and not "Endpoint" in line)) or "warning" in line.lower():
+            lc_line = line.lower()
+            if ("error" in lc_line and (not "In error" in line and not "Endpoint" in line)) \
+               or "warning" in lc_line or "critical" in lc_line:
                 should_be_printed = True
 
         # check for basic transition messages, if that level of verbosity is requested
