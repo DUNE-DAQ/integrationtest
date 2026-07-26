@@ -677,7 +677,8 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
 
     # store the full dunerc console output in a log file for reference and checking
     with open(f"{run_dir}/log_{getpass.getuser()}_drunc_console_output.txt", "w", encoding="utf-8") as ff:
-        ff.write(full_output)
+        no_ansi_output = re.sub(r"\x1b\[[0-9;]*m", "", full_output)
+        ff.write(no_ansi_output)
 
     # construct a CompletedProcess instance to be passed back to the user. In this way,
     # user code does not need to change in response to the change in this code from
