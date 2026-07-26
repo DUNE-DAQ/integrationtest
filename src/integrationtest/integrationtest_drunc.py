@@ -5,25 +5,17 @@ import getpass
 import os
 import re
 import sys
+import time
+import asyncio
+import random
+import json
 from io import StringIO
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
 from integrationtest.resource_validation import ResourceValidator
-from integrationtest.verbosity_helper import (
-    VerbosityHelper,
-    IntegtestVerbosityLevels,
-)
-from integrationtest.data_classes import (
-    CreateConfigResult,
-    config_substitution,
-    attribute_substitution,
-    relationship_substitution,
-    list_element_substitution,
-    list_element_addition,
-    ConnSvcControl,
-    integtest_params_for_generated_dunedaq_config,
-    integtest_params_for_predefined_dunedaq_config,
-)
+from integrationtest.verbosity_helper import *
+from integrationtest.data_classes import *
+from integrationtest.async_proc_mgmt import *
 from integrationtest.utility_functions import delete_file
 from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate import (
@@ -45,9 +37,6 @@ from daqconf.set_session_env_var import (
     set_session_env_var,
 )
 from daqconf.get_session_apps import get_segment_apps
-import time
-import random
-import json
 
 
 # keep track of the number of parametrizations (for various display uses)
@@ -118,7 +107,10 @@ def pytest_generate_tests(metafunc):
 
     parametrize_fixture_with_items(metafunc, "create_config_files", "confgen_arguments")
     parametrize_fixture_with_items(metafunc, "process_manager_type", "process_manager_choices")
-    parametrize_fixture_with_items(metafunc, "run_dunerc", "dunerc_command_list")
+    if hasattr(metafunc.module, "daq_session_ingredients"):
+        parametrize_fixture_with_items(metafunc, "run_dunerc", "daq_session_ingredients")
+    else:
+        parametrize_fixture_with_items(metafunc, "run_dunerc", "dunerc_command_list")
 
     # determine the number of different parametrizations
     # (recall that this fixture is called once per pytest function in each integtest)
@@ -128,6 +120,7 @@ def pytest_generate_tests(metafunc):
         total_paramtrization_combinations = len(metafunc.module.confgen_arguments) * len(metafunc.module.process_manager_choices)
         if type(metafunc.module.dunerc_command_list) is dict:
             total_paramtrization_combinations *= len(metafunc.module.dunerc_command_list)
+
 
 @pytest.fixture(scope="module")
 def process_manager_type(request):
@@ -408,6 +401,14 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
     """
     run_control_commands = request.param
 
+    ## determine which type of request this is, either a list of commands for dunerc or a more
+    ## sophisticated list of applications to be started and the commands to be sent to them
+    #user_supplied_apps = False
+    #if type(run_control_commands) is dict:
+    #    if "applications" in run_control_commands and "commands" in run_control_commands:
+    #        print("*** Found control_app_commands request.")
+    #        user_supplied_apps = True
+
     no_integtest_connsvc = request.config.getoption("--no-integtest-connsvc")
     integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
 
@@ -429,9 +430,13 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
 
         if integtest_verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings:
             current_test = os.environ.get("PYTEST_CURRENT_TEST")
-            match_obj = re.search(r".*\[(.+)-run_.*rc.*\d].*", current_test)
+            match_obj = re.search(r".*\[(.+)-run_.*rc.*\d\].*", current_test)
             if match_obj:
                 current_test = match_obj.group(1)
+            else:
+                match_obj = re.search(r".*\[(.+)\].*", current_test)
+                if match_obj:
+                    current_test = match_obj.group(1)
             print(f"-> {current_test} <-")
 
 
@@ -598,96 +603,34 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
 
     result = RunResult()
     time_before = time.time()
-    # 25-Mar-2026, KAB: use subprocess.Popen to manage the run control session so that we can
-    # capture the console output and pass it back to the user for inspection and validation.
+
     popen_command_list = [dunerc] + create_config_files.integtest_params.dunerc_cmd_args \
         + dunerc_option_strings + [process_manager_type] + [str(create_config_files.dunedaq_config_file)] \
         + [str(create_config_files.integtest_params.config_session_name)] \
-        + [str(create_config_files.integtest_params.daq_session_name)] + run_control_commands
-    rc_process = subprocess.Popen(
-        popen_command_list,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
-        cwd=run_dir
-    )
+        + [str(create_config_files.integtest_params.daq_session_name)]
 
-    # print out each line of captured output, subject to the verbosity level that the
-    # user has requested, as well as add it to the string that we pass back to the user
-    tmp_string = request.config.getoption("--dunerc-fullprint-watch-string")
-    full_printout_watch_string = tmp_string.replace("_SPC_", " ")
-    full_printout_activated = False
-    number_of_lines_printed_to_the_console = 0
-    full_output = ""
-    for line in rc_process.stdout:
-        should_be_printed = integtest_verbosity_level >= IntegtestVerbosityLevels.full_output or \
-            full_printout_activated
+    dsapp = DAQSessionApp("drunc", popen_command_list)
 
-        # check for a user-specified string that triggers full printout
-        # (this check needs to come first so that it sees the initial value of "should_be_printed")
-        if should_be_printed == False and len(full_printout_watch_string) > 0:
-            if re.search(full_printout_watch_string, line):
-                if number_of_lines_printed_to_the_console == 0:
-                    print("\n++++++++++ DRUNC Session BEGIN ++++++++++", flush=True)
-                else:
-                    print("++++++++++ Switching to full DRUNC output mode ++++++++++", flush=True)
-                print(
-                    f"+++ Displaying all DRUNC messages based on the presence of phrase \"{full_printout_watch_string}\" +++",
-                    flush=True
-                )
-                print(full_output)  # messages captured so far
-                full_printout_activated = True
-                should_be_printed = True
-                number_of_lines_printed_to_the_console = 1  # probably more, but good enough
+    requested_cmds = DAQCommandSet("drunc", run_control_commands, CommandWaitParameters(style=CommandWaitStyle.ECHO))
+    exit_cmd = DAQCommandSet("drunc", [ "exit" ], CommandWaitParameters(style=CommandWaitStyle.TIME))
 
-        # check for errors and warnings for all verbosity levels
-        if should_be_printed == False:
-            lc_line = line.lower()
-            if ("error" in lc_line and (not "In error" in line and not "Endpoint" in line)) \
-               or "warning" in lc_line or "critical" in lc_line:
-                should_be_printed = True
+    app_list = [ dsapp ]
+    cmd_set_list = [ requested_cmds, exit_cmd ]
+    dse = DAQSessionIngredients(app_list, cmd_set_list)
 
-        # check for basic transition messages, if that level of verbosity is requested
-        if should_be_printed == False:
-            if integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_boot_terminate:
-                if "Booting session" in line or \
-                   ("Current FSM status is " in line and ("initial" in line or "running" in line)):
-                    should_be_printed = True
+    proc_results = asyncio.run(intg_process_manager(dse, run_dir, integtest_verbosity_level))
+    #print(f"JABJAB {proc_results['drunc']['stdout']}")
 
-        # check for all transition messages, if that level of verbosity is requested
-        if should_be_printed == False:
-            if integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_transitions:
-                if "Booting session" in line or "Running transition" in line \
-                   or ("wait" in line and "running" in line) or "exit code" in line:
-                    should_be_printed = True
-
-        # actually do the printout
-        if should_be_printed:
-            if number_of_lines_printed_to_the_console == 0:
-                print(
-                    "++++++++++ DRUNC Session BEGIN ++++++++++", flush=True
-                )  # Apparently need to flush before subprocess.run
-            print(line, end='', flush=True)
-            number_of_lines_printed_to_the_console += 1
-        full_output += line
-
-    rc_process.communicate()
-    proc_returncode = rc_process.returncode
-
-    # store the full dunerc console output in a log file for reference and checking
-    with open(f"{run_dir}/log_{getpass.getuser()}_drunc_console_output.txt", "w", encoding="utf-8") as ff:
-        ff.write(full_output)
+    time_after = time.time()
 
     # construct a CompletedProcess instance to be passed back to the user. In this way,
     # user code does not need to change in response to the change in this code from
     # using subprocess.run() to subprocess.Popen().
     result.completed_process = subprocess.CompletedProcess(
         popen_command_list,
-        returncode=proc_returncode,
-        stdout=full_output
+        returncode=proc_results["drunc"]["returncode"],
+        stdout=proc_results["drunc"]["stdout"]
     )
-    time_after = time.time()
 
     if connsvc_obj is not None:
         time.sleep(1)
@@ -703,12 +646,6 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
             "Checking for remaining gunicorn and drunc-controller processes", flush=True
         )
         subprocess.run(["killall", "gunicorn", "drunc-controller"])
-
-    if number_of_lines_printed_to_the_console > 0:
-        print("---------- DRUNC Session END ----------", flush=True)
-        print("", flush=True)
-    elif integtest_verbosity_level >= IntegtestVerbosityLevels.drunc_boot_terminate:
-        print("", flush=True)
 
     result.confgen_config = create_config_files.integtest_params
     result.config_session_name = create_config_files.integtest_params.config_session_name
