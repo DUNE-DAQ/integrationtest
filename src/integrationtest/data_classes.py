@@ -138,7 +138,7 @@ class CommandWaitParameters:
 @dataclass
 class DAQSessionApp:
     name: str
-    app_startup_strings: list[str]
+    startup_strings: list[str]
     wait_after_start: int = 2  # seconds
 
 @dataclass

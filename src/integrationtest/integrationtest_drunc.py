@@ -9,6 +9,7 @@ import time
 import asyncio
 import random
 import json
+import copy
 from io import StringIO
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
@@ -118,8 +119,9 @@ def pytest_generate_tests(metafunc):
     global total_paramtrization_combinations
     if total_paramtrization_combinations == 0:
         total_paramtrization_combinations = len(metafunc.module.confgen_arguments) * len(metafunc.module.process_manager_choices)
-        if type(metafunc.module.dunerc_command_list) is dict:
-            total_paramtrization_combinations *= len(metafunc.module.dunerc_command_list)
+        if hasattr(metafunc.module, "dunerc_command_list"):
+            if type(metafunc.module.dunerc_command_list) is dict:
+                total_paramtrization_combinations *= len(metafunc.module.dunerc_command_list)
 
 
 @pytest.fixture(scope="module")
@@ -165,12 +167,12 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
         integtest_params.daq_session_name = integtest_params.config_session_name
 
     # 26-Mar-2026, KAB: suppress output messages, if requested
-    integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
-    if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+    verbosity_level = int(request.config.getoption("--integtest-verbosity"))
+    if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
         print("", flush=True)
     original_stdout = sys.stdout
-    if integtest_verbosity_level < IntegtestVerbosityLevels.full_output:
-        if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+    if verbosity_level < IntegtestVerbosityLevels.full_output:
+        if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
             print("----------------------------------------", flush=True)
             print("*** Messages related to configuration generation have been suppressed ***", flush=True)
             print("----------------------------------------", flush=True)
@@ -383,7 +385,7 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     )
 
     # restore the usual stdout behavior, if needed
-    if integtest_verbosity_level < IntegtestVerbosityLevels.full_output:
+    if verbosity_level < IntegtestVerbosityLevels.full_output:
         sys.stdout = original_stdout
     else:
         print("", flush=True)
@@ -401,16 +403,14 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
     """
     run_control_commands = request.param
 
-    ## determine which type of request this is, either a list of commands for dunerc or a more
-    ## sophisticated list of applications to be started and the commands to be sent to them
-    #user_supplied_apps = False
-    #if type(run_control_commands) is dict:
-    #    if "applications" in run_control_commands and "commands" in run_control_commands:
-    #        print("*** Found control_app_commands request.")
-    #        user_supplied_apps = True
+    # determine which type of request this is, either a list of commands for dunerc or a more
+    # sophisticated list of applications to be started and the commands to be sent to them
+    user_supplied_apps = False
+    if type(run_control_commands) is DAQSessionIngredients:
+        user_supplied_apps = True
 
     no_integtest_connsvc = request.config.getoption("--no-integtest-connsvc")
-    integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
+    verbosity_level = int(request.config.getoption("--integtest-verbosity"))
 
     if no_integtest_connsvc and \
        isinstance(create_config_files.integtest_params, integtest_params_for_generated_dunedaq_config):
@@ -423,12 +423,12 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
         global parametrization_counter
         parametrization_counter += 1
         if parametrization_counter > 1:
-            if integtest_verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings and \
-               integtest_verbosity_level < IntegtestVerbosityLevels.integtest_debug:
+            if verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings and \
+               verbosity_level < IntegtestVerbosityLevels.integtest_debug:
                 print("", flush=True)
                 print("", flush=True)
 
-        if integtest_verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings:
+        if verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings:
             current_test = os.environ.get("PYTEST_CURRENT_TEST")
             match_obj = re.search(r".*\[(.+)-run_.*rc.*\d\].*", current_test)
             if match_obj:
@@ -476,7 +476,7 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
         and create_config_files.integtest_params.connsvc_control == ConnSvcControl.INTEGRATIONTEST
     ):
         # start connsvc
-        if integtest_verbosity_level >= IntegtestVerbosityLevels.full_output:
+        if verbosity_level >= IntegtestVerbosityLevels.full_output:
             print(
                 f"Starting Connectivity Service on port {create_config_files.integtest_params.connsvc_port}"
             )
@@ -533,7 +533,7 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
 
     # suppress output, if requested
     original_stdout = sys.stdout
-    if integtest_verbosity_level < IntegtestVerbosityLevels.full_output:
+    if verbosity_level < IntegtestVerbosityLevels.full_output:
         sys.stdout = catcher = StringIO()
 
     for path in rawdata_paths:
@@ -598,39 +598,59 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
                 file_obj.unlink(True)  # missing is OK
 
     # restore the usual stdout behavior, if needed
-    if integtest_verbosity_level < IntegtestVerbosityLevels.full_output:
+    if verbosity_level < IntegtestVerbosityLevels.full_output:
         sys.stdout = original_stdout
+
+    exit_cmd = DAQCommandSet("drunc", [ "exit" ], CommandWaitParameters(style=CommandWaitStyle.TIME))
+    if user_supplied_apps:
+        dsi = run_control_commands
+        for app in dsi.applications:
+            tmp_exit_cmd = copy.deepcopy(exit_cmd)
+            tmp_exit_cmd.target = app.name
+            dsi.commands.append(tmp_exit_cmd)
+        for app in dsi.applications:
+            for idx in range(len(app.startup_strings)):
+                if app.startup_strings[idx] == "<proc_mgr_choice>":
+                    app.startup_strings[idx] = str(process_manager_type)
+                    continue
+                if app.startup_strings[idx] == "<config_data_file>":
+                    app.startup_strings[idx] = str(create_config_files.dunedaq_config_file)
+                    continue
+                if app.startup_strings[idx] == "<config_session_name>":
+                    app.startup_strings[idx] = str(create_config_files.integtest_params.config_session_name)
+                    continue
+                if app.startup_strings[idx] == "<daq_session_name>":
+                    app.startup_strings[idx] = str(create_config_files.integtest_params.daq_session_name)
+                    continue
+    else:
+        popen_command_list = [dunerc] + create_config_files.integtest_params.dunerc_cmd_args \
+            + dunerc_option_strings + [process_manager_type] + [str(create_config_files.dunedaq_config_file)] \
+            + [str(create_config_files.integtest_params.config_session_name)] \
+            + [str(create_config_files.integtest_params.daq_session_name)]
+
+        dsapp = DAQSessionApp("drunc", popen_command_list)
+
+        requested_cmds = DAQCommandSet("drunc", run_control_commands, CommandWaitParameters(style=CommandWaitStyle.ECHO))
+
+        app_list = [ dsapp ]
+        cmd_set_list = [ requested_cmds, exit_cmd ]
+        dsi = DAQSessionIngredients(app_list, cmd_set_list)
 
     result = RunResult()
     time_before = time.time()
 
-    popen_command_list = [dunerc] + create_config_files.integtest_params.dunerc_cmd_args \
-        + dunerc_option_strings + [process_manager_type] + [str(create_config_files.dunedaq_config_file)] \
-        + [str(create_config_files.integtest_params.config_session_name)] \
-        + [str(create_config_files.integtest_params.daq_session_name)]
-
-    dsapp = DAQSessionApp("drunc", popen_command_list)
-
-    requested_cmds = DAQCommandSet("drunc", run_control_commands, CommandWaitParameters(style=CommandWaitStyle.ECHO))
-    exit_cmd = DAQCommandSet("drunc", [ "exit" ], CommandWaitParameters(style=CommandWaitStyle.TIME))
-
-    app_list = [ dsapp ]
-    cmd_set_list = [ requested_cmds, exit_cmd ]
-    dse = DAQSessionIngredients(app_list, cmd_set_list)
-
-    proc_results = asyncio.run(intg_process_manager(dse, run_dir, integtest_verbosity_level))
-    #print(f"JABJAB {proc_results['drunc']['stdout']}")
+    proc_results = asyncio.run(intg_process_manager(dsi, run_dir, verbosity_level))
 
     time_after = time.time()
 
-    # construct a CompletedProcess instance to be passed back to the user. In this way,
-    # user code does not need to change in response to the change in this code from
-    # using subprocess.run() to subprocess.Popen().
-    result.completed_process = subprocess.CompletedProcess(
-        popen_command_list,
-        returncode=proc_results["drunc"]["returncode"],
-        stdout=proc_results["drunc"]["stdout"]
-    )
+    # construct a CompletedProcess instance for each application that was run.
+    result.completed_processes = {}
+    for app in dsi.applications:
+        result.completed_processes[app.name] = subprocess.CompletedProcess(
+            app.startup_strings,
+            returncode=proc_results[app.name]["returncode"],
+            stdout=proc_results[app.name]["stdout"]
+        )
 
     if connsvc_obj is not None:
         time.sleep(1)
@@ -673,7 +693,7 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
     # 10-Dec-2025, KAB: added the DAQ session overall time so that we can use this
     # information in fine-tuning the allowed ranges in time-based checking of test results.
     result.daq_session_overall_time = time_after - time_before
-    result.verbosity_helper = VerbosityHelper(integtest_verbosity_level)
+    result.verbosity_helper = VerbosityHelper(verbosity_level)
 
     # pass the names of the HDF5 files to the 'cleanup' fixture
     cleanup_hdf5_files["raw"] = result.data_files
@@ -696,16 +716,16 @@ def check_system_resources(request):
     the recommended resources are not present, then a warning is printed
     """
     skip_resource_checks = request.config.getoption("--skip-resource-checks")
-    integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
+    verbosity_level = int(request.config.getoption("--integtest-verbosity"))
 
     # print out a couple of blank lines to help with formatting
-    if integtest_verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings:
+    if verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings:
         print("", flush=True)
         print("", flush=True)
 
     resval = getattr(request.module, "resource_validator", ResourceValidator())
 
-    if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+    if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
         resval_debug_string = resval.get_debug_string()
         print(resval_debug_string)
 
@@ -718,7 +738,7 @@ def check_system_resources(request):
             del request.session.items[1:]
             pytest.skip(f"\n\N{LARGE YELLOW CIRCLE} {resval_report_string}")
     if not resval.recommended_resources_are_present:
-        if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+        if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
             resval_report_string = resval.get_recommended_resources_report()
             print(f"\n*** Note: {resval_report_string}")
 
@@ -727,7 +747,7 @@ def check_system_resources(request):
     # 16-Feb-2026, KAB: added a printout for recommended resources after the "yield"
     # statement so that it gets printed out at the end of the output that the user sees.
     if not resval.recommended_resources_are_present:
-        if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+        if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
             resval_report_string = resval.get_recommended_resources_report()
             print(f"\n*** Note: {resval_report_string}")
 
@@ -744,7 +764,7 @@ def cleanup_hdf5_files(request, create_config_files):
     yield file_lists
 
     # here is where the work gets done...
-    integtest_verbosity_level = int(request.config.getoption("--integtest-verbosity"))
+    verbosity_level = int(request.config.getoption("--integtest-verbosity"))
     user_requests_hdf5_file_removal = request.config.getoption("--remove-hdf5-files")
     the_test_requests_hdf5_file_removal = create_config_files.integtest_params.remove_hdf5_files
 
@@ -776,7 +796,7 @@ def cleanup_hdf5_files(request, create_config_files):
                 pathlist_string += " " + str(data_file.parent)
 
         if pathlist_string and filelist_string:
-            if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+            if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
                 print("============================================")
                 print("Listing the hdf5 files before deleting them:")
                 print("============================================")
@@ -792,7 +812,7 @@ def cleanup_hdf5_files(request, create_config_files):
             for data_file in file_lists["trmon"]:
                 delete_file(data_file)
 
-            if integtest_verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+            if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
                 print("--------------------")
                 os.system(f"df -h {pathlist_string}")
                 print("============================================")

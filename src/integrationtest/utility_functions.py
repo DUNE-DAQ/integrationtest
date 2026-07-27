@@ -24,9 +24,10 @@ def basic_checks(run_dunerc, caplog, print_test_name: bool = True):
         print(banner_line)
 
     # Check that dunerc completed correctly
-    if run_dunerc.completed_process.returncode != 0:
-        fail_msg = f"The run control session returned a non-zero status code ({run_dunerc.completed_process.returncode})."
-        pytest.fail(fail_msg, pytrace=False)
+    for proc_name, cmplt_proc in run_dunerc.completed_processes.items():
+        if cmplt_proc.returncode != 0:
+            fail_msg = f"The {proc_name} process returned a non-zero status code ({cmplt_proc.returncode})."
+            pytest.fail(fail_msg, pytrace=False)
 
     # Check that there weren't any warnings or errors during setup
     setup_logs = caplog.get_records("setup")
