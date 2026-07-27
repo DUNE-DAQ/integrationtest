@@ -613,8 +613,8 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
         cwd=run_dir
     )
 
-    # print out each line of captured output, as well as add it to the string that we
-    # pass back to the user, subject to the verbosity level that the user has requested
+    # print out each line of captured output, subject to the verbosity level that the
+    # user has requested, as well as add it to the string that we pass back to the user
     tmp_string = request.config.getoption("--dunerc-fullprint-watch-string")
     full_printout_watch_string = tmp_string.replace("_SPC_", " ")
     full_printout_activated = False
@@ -643,7 +643,9 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
 
         # check for errors and warnings for all verbosity levels
         if should_be_printed == False:
-            if ("error" in line.lower() and (not "In error" in line and not "Endpoint" in line)) or "warning" in line.lower():
+            lc_line = line.lower()
+            if ("error" in lc_line and (not "In error" in line and not "Endpoint" in line)) \
+               or "warning" in lc_line or "critical" in lc_line:
                 should_be_printed = True
 
         # check for basic transition messages, if that level of verbosity is requested
@@ -672,6 +674,11 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
 
     rc_process.communicate()
     proc_returncode = rc_process.returncode
+
+    # store the full dunerc console output in a log file for reference and checking
+    with open(f"{run_dir}/log_{getpass.getuser()}_drunc_console_output.txt", "w", encoding="utf-8") as ff:
+        no_ansi_output = re.sub(r"\x1b\[[0-9;]*m", "", full_output)
+        ff.write(no_ansi_output)
 
     # construct a CompletedProcess instance to be passed back to the user. In this way,
     # user code does not need to change in response to the change in this code from
