@@ -608,7 +608,7 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
             tmp_exit_cmd = copy.deepcopy(exit_cmd)
             tmp_exit_cmd.target = app.name
             dsi.commands.append(tmp_exit_cmd)
-        for app in dsi.applications:
+
             for idx in range(len(app.startup_strings)):
                 if app.startup_strings[idx] == "<proc_mgr_choice>":
                     app.startup_strings[idx] = str(process_manager_type)
@@ -622,6 +622,9 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
                 if app.startup_strings[idx] == "<daq_session_name>":
                     app.startup_strings[idx] = str(create_config_files.integtest_params.daq_session_name)
                     continue
+
+            if len(dunerc_option_strings) > 0 and app.name == "drunc":
+                app.startup_strings[1:1] = dunerc_option_strings
     else:
         popen_command_list = [dunerc] + create_config_files.integtest_params.dunerc_cmd_args \
             + dunerc_option_strings + [process_manager_type] + [str(create_config_files.dunedaq_config_file)] \
