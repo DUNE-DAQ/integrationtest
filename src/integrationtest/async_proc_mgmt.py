@@ -6,7 +6,7 @@ import re
 import time
 from integrationtest.data_classes import *
 from integrationtest.verbosity_helper import *
-from datetime import datetime
+from datetime import datetime, timezone
 
 import functools
 print = functools.partial(print, flush=True)  # always flush print() output
@@ -47,7 +47,7 @@ async def read_stream(stream, process_name, print_proc_name, run_dir,
                     if trimmed_line.endswith(r">"):
                         continue
                     if verbosity_level >= IntegtestVerbosityLevels.drunc_debug:
-                        now_string = datetime.now().strftime("%H:%M:%S")
+                        now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
                         print(f"[integtest_proc_mgmt {now_string}] Help command output: {decoded_line}")
                     the_cmds = trimmed_line.split()
                     tmp_list = shared_data.results_of_parsing_help_output + the_cmds
@@ -119,7 +119,7 @@ async def wait_for_console_output_lull(start_time, wait_params: CommandWaitParam
 async def send_commands(target_proc, proc_name, shared_data: CommandProcessingSharedData,
                         cmd_list, wait_params, verbosity_level):
     if target_proc.returncode is not None:  # Check if process is still running
-        now_string = datetime.now().strftime("%H:%M:%S")
+        now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
         print(f"[integtest_proc_mgmt {now_string}] Error: {proc_name} has already exited, unable to send \"{cmd_list}\".")
         return
 
@@ -129,7 +129,7 @@ async def send_commands(target_proc, proc_name, shared_data: CommandProcessingSh
         target_proc.stdin.write((cmd + "\n").encode())
         await target_proc.stdin.drain()
         if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
-            now_string = datetime.now().strftime("%H:%M:%S")
+            now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
             print(f"[integtest_proc_mgmt {now_string}] Sent command to {proc_name}: {cmd}")
         else:
             async with shared_data.lock:
@@ -144,7 +144,7 @@ async def send_commands(target_proc, proc_name, shared_data: CommandProcessingSh
         target_proc.stdin.write(("echo '*** COMMAND HAS COMPLETED ***'\n").encode())
         await target_proc.stdin.drain()
         if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
-            now_string = datetime.now().strftime("%H:%M:%S")
+            now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
             print(f"[integtest_proc_mgmt {now_string}] Sent command to {proc_name}: echo '*** COMMAND HAS COMPLETED ***'")
         await shared_data.cmd_cmplt_evt.wait()
         shared_data.cmd_cmplt_evt.clear()
@@ -164,7 +164,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
     for session_app in daq_session_ingredients.applications:
         name = session_app.name
         if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
-            now_string = datetime.now().strftime("%H:%M:%S")
+            now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
             print()
             print(f"[integtest_proc_mgmt {now_string}] Starting \"{session_app.startup_strings}\" with local process name \"{name}\"...")
             #print()
@@ -190,7 +190,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
         time.sleep(session_app.wait_after_start)
 
     if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
-        now_string = datetime.now().strftime("%H:%M:%S")
+        now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
         print()
         print(f"[integtest_proc_mgmt {now_string}] Started {len(processes)} process(es).")
         print()
@@ -260,7 +260,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
                                     cmd_set.wait_params, verbosity_level)
 
             else:
-                now_string = datetime.now().strftime("%H:%M:%S")
+                now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
                 print(f"[integtest_proc_mgmt {now_string}] Error: Process '{target}' not found.")
 
     except asyncio.CancelledError:
@@ -276,7 +276,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
 
         # 4. Cleanup and terminate remaining processes
         if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
-            now_string = datetime.now().strftime("%H:%M:%S")
+            now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
             print(f"\n[integtest_proc_mgmt {now_string}] Shutting down processes...")
         for name, proc_info in reversed(processes.items()):
             if proc_info.process.returncode is None:
