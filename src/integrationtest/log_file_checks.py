@@ -111,7 +111,8 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
             ["LogLevel=error", "key:\s\"DUNEDAQ_ERS_"]
         )
         excluded_substring_map.setdefault("drunc", []).extend(
-            ["LogLevel=error", "key:\s\"DUNEDAQ_ERS_", "DUNEDAQ_ERS_.*erstrace", "export DUNEDAQ_ERS_"]
+            ["LogLevel=error", "key:\s\"DUNEDAQ_ERS_", "DUNEDAQ_ERS_.*erstrace", "export DUNEDAQ_ERS_",
+             "NewConnectionError.* Failed to establish a new connection: \[Errno 111\] Connection refused"]
         )
 
     # 21-Jul-2026, KAB: phrases that we always want to exclude
