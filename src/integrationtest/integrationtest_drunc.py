@@ -623,7 +623,7 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
                     app.startup_strings[idx] = str(create_config_files.integtest_params.daq_session_name)
                     continue
 
-            if len(dunerc_option_strings) > 0 and app.alias == "drunc":
+            if len(dunerc_option_strings) > 0 and "drunc-unified-shell" in app.startup_strings[0]:
                 app.startup_strings[1:1] = dunerc_option_strings
     else:
         popen_command_list = [dunerc] + create_config_files.integtest_params.dunerc_cmd_args \

@@ -155,7 +155,6 @@ class DAQSessionIngredients:
 @dataclass
 class RunningProcessInfo:
     process: asyncio.subprocess.Process
-    app_exe_name: str
     supported_commands: list[str] = field(default_factory=list)
 
 @dataclass

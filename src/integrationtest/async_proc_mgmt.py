@@ -12,13 +12,13 @@ import functools
 print = functools.partial(print, flush=True)  # always flush print() output
 
 
-async def read_stream(stream, process_name, print_proc_name, run_dir,
+async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_dir,
                       shared_data: CommandProcessingSharedData, verbosity_level):
     """Asynchronously reads lines from a stream and processes them immediately."""
     full_output = ""
 
     # store the full output in a log file to be checked for problems and for later reference
-    with open(f"{run_dir}/log_{getpass.getuser()}_{process_name}_console_output.txt", "w", encoding="utf-8") as ff:
+    with open(f"{run_dir}/log_{getpass.getuser()}_{app_exe_name}_console_output.txt", "w", encoding="utf-8") as ff:
         while True:
             line = await stream.readline()
             if not line:
@@ -177,14 +177,12 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
             stderr=asyncio.subprocess.STDOUT,
             cwd=run_dir
         )
-        processes[proc_name] = RunningProcessInfo(proc, session_app.startup_strings[0])
+        processes[proc_name] = RunningProcessInfo(proc)
 
         # 2. Schedule output reading tasks to run concurrently
-        tasks[proc_name] = asyncio.create_task(read_stream(proc.stdout, proc_name,
+        tasks[proc_name] = asyncio.create_task(read_stream(proc.stdout, proc_name, session_app.startup_strings[0],
                                                            (len(daq_session_ingredients.applications)>1),
-                                                           run_dir,
-                                                           shared_data,
-                                                           verbosity_level
+                                                           run_dir, shared_data, verbosity_level
                                                            ))
 
         time.sleep(session_app.wait_time_after_start)
