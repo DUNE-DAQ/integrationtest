@@ -606,7 +606,7 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
         dsi = run_control_commands
         for app in dsi.applications:
             tmp_exit_cmd = copy.deepcopy(exit_cmd)
-            tmp_exit_cmd.target = app.name
+            tmp_exit_cmd.target = app.alias
             dsi.commands.append(tmp_exit_cmd)
 
             for idx in range(len(app.startup_strings)):
@@ -623,7 +623,7 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
                     app.startup_strings[idx] = str(create_config_files.integtest_params.daq_session_name)
                     continue
 
-            if len(dunerc_option_strings) > 0 and app.name == "drunc":
+            if len(dunerc_option_strings) > 0 and app.alias == "drunc":
                 app.startup_strings[1:1] = dunerc_option_strings
     else:
         popen_command_list = [dunerc] + create_config_files.integtest_params.dunerc_cmd_args \
@@ -649,10 +649,10 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
     # construct a CompletedProcess instance for each application that was run.
     result.completed_processes = {}
     for app in dsi.applications:
-        result.completed_processes[app.name] = subprocess.CompletedProcess(
+        result.completed_processes[app.alias] = subprocess.CompletedProcess(
             app.startup_strings,
-            returncode=proc_results[app.name]["returncode"],
-            stdout=proc_results[app.name]["stdout"]
+            returncode=proc_results[app.alias]["returncode"],
+            stdout=proc_results[app.alias]["stdout"]
         )
 
     if connsvc_obj is not None:

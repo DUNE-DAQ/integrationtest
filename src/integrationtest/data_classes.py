@@ -137,9 +137,9 @@ class CommandWaitParameters:
 
 @dataclass
 class DAQSessionApp:
-    name: str
+    alias: str
     startup_strings: list[str]
-    wait_after_start: int = 2  # seconds
+    wait_time_after_start: int = 2  # seconds
 
 @dataclass
 class DAQCommandSet:
@@ -155,6 +155,7 @@ class DAQSessionIngredients:
 @dataclass
 class RunningProcessInfo:
     process: asyncio.subprocess.Process
+    app_exe_name: str
     supported_commands: list[str] = field(default_factory=list)
 
 @dataclass

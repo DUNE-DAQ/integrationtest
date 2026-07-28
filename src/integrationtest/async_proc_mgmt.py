@@ -162,11 +162,11 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
 
     # 1. Start all subprocesses
     for session_app in daq_session_ingredients.applications:
-        name = session_app.name
+        proc_name = session_app.alias
         if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
             now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
             print()
-            print(f"[integtest_proc_mgmt {now_string}] Starting \"{session_app.startup_strings}\" with local process name \"{name}\"...")
+            print(f"[integtest_proc_mgmt {now_string}] Starting \"{session_app.startup_strings}\" with process name \"{proc_name}\"...")
             #print()
         else:
             print(".", end="")
@@ -177,17 +177,17 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
             stderr=asyncio.subprocess.STDOUT,
             cwd=run_dir
         )
-        processes[name] = RunningProcessInfo(proc)
+        processes[proc_name] = RunningProcessInfo(proc, session_app.startup_strings[0])
 
         # 2. Schedule output reading tasks to run concurrently
-        tasks[name] = asyncio.create_task(read_stream(proc.stdout, name,
-                                                      (len(daq_session_ingredients.applications)>1),
-                                                      run_dir,
-                                                      shared_data,
-                                                      verbosity_level
-                                                      ))
+        tasks[proc_name] = asyncio.create_task(read_stream(proc.stdout, proc_name,
+                                                           (len(daq_session_ingredients.applications)>1),
+                                                           run_dir,
+                                                           shared_data,
+                                                           verbosity_level
+                                                           ))
 
-        time.sleep(session_app.wait_after_start)
+        time.sleep(session_app.wait_time_after_start)
 
     if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
         now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
@@ -199,25 +199,22 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
             if shared_data.number_of_lines_printed_to_the_console == 0:
                 print(".", end="")
 
-    # determine the lists of supported commands (using the 'help' command for each app)
+    # determine the supported commands for each app (using the 'help' command)
     help_cmd = ["help"]
     help_cmd_wait_params = CommandWaitParameters(timeout_waiting_for_first_msg=2)
     await wait_for_console_output_lull(time.time(), help_cmd_wait_params, shared_data)
-    for name, proc_info in processes.items():
+    for proc_name, proc_info in processes.items():
         async with shared_data.lock:
             shared_data.results_of_parsing_help_output = []
             shared_data.parsing_of_help_output_in_progress = True
-        await send_commands(proc_info.process, name, shared_data, help_cmd,
+        await send_commands(proc_info.process, proc_name, shared_data, help_cmd,
                             help_cmd_wait_params, verbosity_level)
         async with shared_data.lock:
             shared_data.parsing_of_help_output_in_progress = False
             proc_info.supported_commands = shared_data.results_of_parsing_help_output
             shared_data.results_of_parsing_help_output = []
 
-    # 3. Handle interactive user input from the main terminal
-    #loop = asyncio.get_running_loop()
-    #await loop.connect_read_pipe(lambda: protocol, sys.stdin)
-
+    # 3. Send the commands to the running process(es)
     return_code = 0
     try:
         for cmd_set in daq_session_ingredients.commands:
@@ -226,34 +223,45 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
                 proc_info = processes[target]
                 proc = proc_info.process
 
-                # re-group the DAQ commands, if needed
+                # re-organize the DAQ commands to provide valid combinations, if needed
                 working_cmd_list = []
                 working_cmd = ""
+                # we work backward thru the list so that we can add arguments to commands
                 for daq_cmd in reversed(cmd_set.command_list):
                     daq_cmd = daq_cmd.strip()
                     # if the number of words is > 1, then we trust that the user specified the full command
                     if len(daq_cmd.split()) > 1:
                         working_cmd_list.append(daq_cmd)
                     else:
-                        #try:
-                        #    int(daq_cmd)
-                        #    working_cmd = " " + daq_cmd + working_cmd
-                        #    continue
-                        #except:
-                        #    pass
-                        #if daq_cmd.startswith("--"):
-                        #    working_cmd = " " + daq_cmd + working_cmd
-                        #    continue
+                        # check if the "cmd" is a number; if so, we expect it to be an argument
+                        try:
+                            int(daq_cmd)
+                            working_cmd = " " + daq_cmd + working_cmd
+                            continue
+                        except:
+                            pass
+                        # check if the "cmd" starts with double-dash; if so, consider it an argument
+                        if daq_cmd.startswith("--"):
+                            working_cmd = " " + daq_cmd + working_cmd
+                            continue
+                        # check if the "cmd" is not one of the known supported commands
+                        # if not, we consider it an argument to an application command
                         if len(proc_info.supported_commands) > 0:
                             if daq_cmd not in proc_info.supported_commands:
                                 working_cmd = " " + daq_cmd + working_cmd
                                 continue
+
+                        # Here we assemble valid application commands.
+                        # If there is a non-empty "working" cmd string, add it to the
+                        # current command as its arguments.  Otherwise, the "cmd" stands
+                        # alone and gets added to the list with no arguments.
                         if len(working_cmd) > 0:
                             working_cmd = daq_cmd + working_cmd
                             working_cmd_list.append(working_cmd)
                             working_cmd = ""
                         else:
                             working_cmd_list.append(daq_cmd)
+                # restore the intended order of the commands to be sent to the process
                 reformatted_cmd_list = reversed(working_cmd_list)
 
                 await send_commands(proc, target, shared_data, reformatted_cmd_list,
@@ -278,11 +286,11 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
         if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
             now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
             print(f"\n[integtest_proc_mgmt {now_string}] Shutting down processes...")
-        for name, proc_info in reversed(processes.items()):
+        for proc_name, proc_info in reversed(processes.items()):
             if proc_info.process.returncode is None:
                 proc_info.process.terminate()
                 await proc_info.process.wait()
-            proc_results[name] = {"returncode": proc_info.process.returncode}
+            proc_results[proc_name] = {"returncode": proc_info.process.returncode}
 
         # Cancel background reading tasks
         for proc_name, task in tasks.items():
