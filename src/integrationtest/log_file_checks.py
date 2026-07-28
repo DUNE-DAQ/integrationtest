@@ -108,7 +108,10 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
     # some strings to the excluded substring map so we don't trigger on those debug messages
     if verbosity_helper.compare_level(IntegtestVerbosityLevels.drunc_debug):
         excluded_substring_map.setdefault("SSH_SHELL_process_manager", []).extend(
-            ["RAN:", "LogLevel=error"]
+            ["LogLevel=error", "key:\s\"DUNEDAQ_ERS_"]
+        )
+        excluded_substring_map.setdefault("drunc", []).extend(
+            ["LogLevel=error", "key:\s\"DUNEDAQ_ERS_", "DUNEDAQ_ERS_.*erstrace", "export DUNEDAQ_ERS_"]
         )
 
     # 21-Jul-2026, KAB: phrases that we always want to exclude
