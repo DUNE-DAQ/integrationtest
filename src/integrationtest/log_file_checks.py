@@ -1,5 +1,6 @@
 from glob import glob
 import re
+import copy
 from integrationtest.verbosity_helper import (
     IntegtestVerbosityLevels,
     VerbosityHelper
@@ -104,30 +105,34 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
                         excluded_substring_map={}, required_substring_map={}, print_required_message_report=False,
                         verbosity_helper: VerbosityHelper = VerbosityHelper(99)):
 
+    # since we modify the excluded_substring_map in this code, we'll make a local copy so that
+    # we don't leak changes back into the calling code
+    local_excl_string_map = copy.deepcopy(excluded_substring_map)
+
     # 06-Apr-2026, KAB: if the verbosity level is set to enable DRUNC debug messages, add
     # some strings to the excluded substring map so we don't trigger on those debug messages
     if verbosity_helper.compare_level(IntegtestVerbosityLevels.drunc_debug):
-        excluded_substring_map.setdefault("SSH_SHELL_process_manager", []).extend(
+        local_excl_string_map.setdefault("SSH_SHELL_process_manager", []).extend(
             ["LogLevel=error", "key:\s\"DUNEDAQ_ERS_"]
         )
-        excluded_substring_map.setdefault("drunc", []).extend(
+        local_excl_string_map.setdefault("drunc", []).extend(
             ["LogLevel=error", "key:\s\"DUNEDAQ_ERS_", "DUNEDAQ_ERS_.*erstrace", "export DUNEDAQ_ERS_",
              "NewConnectionError.* Failed to establish a new connection: \[Errno 111\] Connection refused"]
         )
 
     # 21-Jul-2026, KAB: phrases that we always want to exclude
-    excluded_substring_map.setdefault("drunc", []).extend(["Substate.*In error.*Endpoint"])
+    local_excl_string_map.setdefault("drunc", []).extend(["Substate.*In error.*Endpoint"])
 
     all_ok=True
     #print("") # Clear potential dot from pytest
     for log in log_file_names:
         exclusions=[]
         requireds=[]
-        for exclusion_key in excluded_substring_map.keys():
+        for exclusion_key in local_excl_string_map.keys():
             #print(f"Checking for match for {exclusion_key} in {log.name}")
             match_obj = re.search(exclusion_key, log.name)
             if match_obj:
-                exclusions += excluded_substring_map[exclusion_key]
+                exclusions += local_excl_string_map[exclusion_key]
         for required_key in required_substring_map.keys():
             match_obj = re.search(required_key, log.name)
             if match_obj:
