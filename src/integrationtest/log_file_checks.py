@@ -110,9 +110,14 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
         excluded_substring_map.setdefault("SSH_SHELL_process_manager", []).extend(
             ["LogLevel=error", "key:\s\"DUNEDAQ_ERS_"]
         )
+        # we may want to combine all of the drunc* processes into one declaration, but for now,
+        # we'll keep them separate
         excluded_substring_map.setdefault("drunc-unified-shell", []).extend(
             ["LogLevel=error", "key:\s\"DUNEDAQ_ERS_", "DUNEDAQ_ERS_.*erstrace", "export DUNEDAQ_ERS_",
              "NewConnectionError.* Failed to establish a new connection: \[Errno 111\] Connection refused"]
+        )
+        excluded_substring_map.setdefault("drunc-process-manager", []).extend(
+            ["LogLevel=error", "key:\s\"DUNEDAQ_ERS_", "DUNEDAQ_ERS_.*erstrace", "export DUNEDAQ_ERS_"]
         )
 
     # 21-Jul-2026, KAB: phrases that we always want to exclude
