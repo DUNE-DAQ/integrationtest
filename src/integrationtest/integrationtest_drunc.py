@@ -122,6 +122,9 @@ def pytest_generate_tests(metafunc):
         if hasattr(metafunc.module, "dunerc_command_list"):
             if type(metafunc.module.dunerc_command_list) is dict:
                 total_paramtrization_combinations *= len(metafunc.module.dunerc_command_list)
+        if hasattr(metafunc.module, "daq_session_ingredients"):
+            if type(metafunc.module.daq_session_ingredients) is dict:
+                total_paramtrization_combinations *= len(metafunc.module.daq_session_ingredients)
 
 
 @pytest.fixture(scope="module")
@@ -603,7 +606,7 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
 
     exit_cmd = DAQCommandSet("drunc", [ "exit" ], CommandWaitParameters(style=CommandWaitStyle.TIME))
     if user_supplied_apps:
-        dsi = run_control_commands
+        dsi = copy.deepcopy(run_control_commands)
         for app in dsi.applications:
             tmp_exit_cmd = copy.deepcopy(exit_cmd)
             tmp_exit_cmd.target = app.alias
