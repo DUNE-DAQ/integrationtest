@@ -608,10 +608,12 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
     if user_supplied_apps:
         dsi = copy.deepcopy(run_control_commands)
         for app in dsi.applications:
+            # add an exit command to the end of the command list (for each app)
             tmp_exit_cmd = copy.deepcopy(exit_cmd)
             tmp_exit_cmd.target = app.alias
             dsi.commands.append(tmp_exit_cmd)
 
+            # replace placeholders in the command startup strings
             for idx in range(len(app.startup_strings)):
                 if app.startup_strings[idx] == "<proc_mgr_choice>":
                     app.startup_strings[idx] = str(process_manager_type)
@@ -626,8 +628,21 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
                     app.startup_strings[idx] = str(create_config_files.integtest_params.daq_session_name)
                     continue
 
-            if len(dunerc_option_strings) > 0 and "drunc-unified-shell" in app.startup_strings[0]:
-                app.startup_strings[1:1] = dunerc_option_strings
+            # include requested options in the startup strings for the apps that support them
+            # (This relies on the apps failing if we pass them unsupported options and not failing
+            # if the requested options are supported. Of course, this is not perfect because there
+            # can be multiple options in a single list, and we don't do the work to see if some of
+            # them are supported but not others.)
+            if len(dunerc_option_strings) > 0:
+                help_cmds = [app.startup_strings[0]] + dunerc_option_strings + ["--help"]
+                result = subprocess.run(help_cmds, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if result.returncode == 0:
+                    app.startup_strings[1:1] = dunerc_option_strings
+            if len(create_config_files.integtest_params.dunerc_cmd_args) > 0:
+                help_cmds = [app.startup_strings[0]] + create_config_files.integtest_params.dunerc_cmd_args + ["--help"]
+                result = subprocess.run(help_cmds, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if result.returncode == 0:
+                    app.startup_strings[1:1] = create_config_files.integtest_params.dunerc_cmd_args
     else:
         popen_command_list = [dunerc] + create_config_files.integtest_params.dunerc_cmd_args \
             + dunerc_option_strings + [process_manager_type] + [str(create_config_files.dunedaq_config_file)] \
