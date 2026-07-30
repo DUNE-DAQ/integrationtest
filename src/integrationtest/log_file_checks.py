@@ -108,8 +108,15 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
     # some strings to the excluded substring map so we don't trigger on those debug messages
     if verbosity_helper.compare_level(IntegtestVerbosityLevels.drunc_debug):
         excluded_substring_map.setdefault("SSH_SHELL_process_manager", []).extend(
-            ["RAN:", "LogLevel=error"]
+            ["LogLevel=error", "key:\s\"DUNEDAQ_ERS_"]
         )
+        excluded_substring_map.setdefault("drunc", []).extend(
+            ["LogLevel=error", "key:\s\"DUNEDAQ_ERS_", "DUNEDAQ_ERS_.*erstrace", "export DUNEDAQ_ERS_",
+             "NewConnectionError.* Failed to establish a new connection: \[Errno 111\] Connection refused"]
+        )
+
+    # 21-Jul-2026, KAB: phrases that we always want to exclude
+    excluded_substring_map.setdefault("drunc", []).extend(["Substate.*In error.*Endpoint"])
 
     all_ok=True
     #print("") # Clear potential dot from pytest
@@ -121,13 +128,11 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
             match_obj = re.search(exclusion_key, log.name)
             if match_obj:
                 exclusions += excluded_substring_map[exclusion_key]
-                break
         for required_key in required_substring_map.keys():
             match_obj = re.search(required_key, log.name)
             if match_obj:
                 requireds += required_substring_map[required_key]
-                break
-        
+
         single_ok=log_has_no_errors(log, print_logfilename_for_problems, exclusions, requireds,
                                     print_required_message_report, verbosity_helper)
 
