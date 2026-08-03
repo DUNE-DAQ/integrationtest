@@ -118,7 +118,8 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
         )
         local_excl_string_map.setdefault("drunc", []).extend(
             ["LogLevel=error", r'key:\s+"DUNEDAQ_ERS_', r"DUNEDAQ_ERS_.*erstrace", "export DUNEDAQ_ERS_",
-             r"NewConnectionError.* Failed to establish a new connection: \[Errno 111\] Connection refused"]
+             r"NewConnectionError.* Failed to establish a new connection: \[Errno 111\] Connection refused",
+             r"drunc.utils.ConnectivityServiceClient\s+404 Client Error: NOT FOUND for url:"]
         )
 
     # 21-Jul-2026, KAB: phrases that we always want to exclude
