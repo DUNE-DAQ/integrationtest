@@ -113,7 +113,8 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
     # some strings to the excluded substring map so we don't trigger on those debug messages
     if verbosity_helper.compare_level(IntegtestVerbosityLevels.drunc_debug):
         local_excl_string_map.setdefault("SSH_SHELL_process_manager", []).extend(
-            ["LogLevel=error", r'key:\s+"DUNEDAQ_ERS_']
+            ["LogLevel=error", r'key:\s+"DUNEDAQ_ERS_',
+             r"drunc.utils.ConnectivityServiceClient\s+404 Client Error: NOT FOUND for url:"]
         )
         local_excl_string_map.setdefault("drunc", []).extend(
             ["LogLevel=error", r'key:\s+"DUNEDAQ_ERS_', r"DUNEDAQ_ERS_.*erstrace", "export DUNEDAQ_ERS_",
