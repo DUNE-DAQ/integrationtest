@@ -113,11 +113,11 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
     # some strings to the excluded substring map so we don't trigger on those debug messages
     if verbosity_helper.compare_level(IntegtestVerbosityLevels.drunc_debug):
         local_excl_string_map.setdefault("SSH_SHELL_process_manager", []).extend(
-            ["LogLevel=error", "key:\s\"DUNEDAQ_ERS_"]
+            ["LogLevel=error", r'key:\s+"DUNEDAQ_ERS_']
         )
         local_excl_string_map.setdefault("drunc", []).extend(
-            ["LogLevel=error", "key:\s\"DUNEDAQ_ERS_", "DUNEDAQ_ERS_.*erstrace", "export DUNEDAQ_ERS_",
-             "NewConnectionError.* Failed to establish a new connection: \[Errno 111\] Connection refused"]
+            ["LogLevel=error", r'key:\s+"DUNEDAQ_ERS_', r"DUNEDAQ_ERS_.*erstrace", "export DUNEDAQ_ERS_",
+             r"NewConnectionError.* Failed to establish a new connection: \[Errno 111\] Connection refused"]
         )
 
     # 21-Jul-2026, KAB: phrases that we always want to exclude
