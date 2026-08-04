@@ -40,9 +40,9 @@ from daqconf.set_session_env_var import (
 from daqconf.get_session_apps import get_segment_apps
 
 
-# keep track of the number of parametrizations (for various display uses)
-total_paramtrization_combinations = 0
-parametrization_counter = 0
+# keep track of the number of parameterizations (for various display uses)
+total_parameterization_combinations = 0
+parameterization_counter = 0
 
 
 def parametrize_fixture_with_items(metafunc, fixture, itemsname):
@@ -113,18 +113,18 @@ def pytest_generate_tests(metafunc):
     else:
         parametrize_fixture_with_items(metafunc, "run_dunerc", "dunerc_command_list")
 
-    # determine the number of different parametrizations
+    # determine the number of different parameterizations
     # (recall that this fixture is called once per pytest function in each integtest)
     # (we only need to calculate this value once, so we check the initial value of zero)
-    global total_paramtrization_combinations
-    if total_paramtrization_combinations == 0:
-        total_paramtrization_combinations = len(metafunc.module.confgen_arguments) * len(metafunc.module.process_manager_choices)
+    global total_parameterization_combinations
+    if total_parameterization_combinations == 0:
+        total_parameterization_combinations = len(metafunc.module.confgen_arguments) * len(metafunc.module.process_manager_choices)
         if hasattr(metafunc.module, "daq_session_ingredients"):
             if type(metafunc.module.daq_session_ingredients) is dict:
-                total_paramtrization_combinations *= len(metafunc.module.daq_session_ingredients)
+                total_parameterization_combinations *= len(metafunc.module.daq_session_ingredients)
         elif hasattr(metafunc.module, "dunerc_command_list"):
             if type(metafunc.module.dunerc_command_list) is dict:
-                total_paramtrization_combinations *= len(metafunc.module.dunerc_command_list)
+                total_parameterization_combinations *= len(metafunc.module.dunerc_command_list)
 
 
 @pytest.fixture(scope="module")
@@ -420,11 +420,11 @@ def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_
 
     run_dir = tmp_path_factory.mktemp("run")
 
-    global total_paramtrization_combinations
-    if total_paramtrization_combinations > 1:
-        global parametrization_counter
-        parametrization_counter += 1
-        if parametrization_counter > 1:
+    global total_parameterization_combinations
+    if total_parameterization_combinations > 1:
+        global parameterization_counter
+        parameterization_counter += 1
+        if parameterization_counter > 1:
             if verbosity_level > IntegtestVerbosityLevels.just_errors_and_warnings and \
                verbosity_level < IntegtestVerbosityLevels.integtest_debug:
                 print("", flush=True)
