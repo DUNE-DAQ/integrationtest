@@ -119,12 +119,12 @@ def pytest_generate_tests(metafunc):
     global total_paramtrization_combinations
     if total_paramtrization_combinations == 0:
         total_paramtrization_combinations = len(metafunc.module.confgen_arguments) * len(metafunc.module.process_manager_choices)
-        if hasattr(metafunc.module, "dunerc_command_list"):
-            if type(metafunc.module.dunerc_command_list) is dict:
-                total_paramtrization_combinations *= len(metafunc.module.dunerc_command_list)
         if hasattr(metafunc.module, "daq_session_ingredients"):
             if type(metafunc.module.daq_session_ingredients) is dict:
                 total_paramtrization_combinations *= len(metafunc.module.daq_session_ingredients)
+        elif hasattr(metafunc.module, "dunerc_command_list"):
+            if type(metafunc.module.dunerc_command_list) is dict:
+                total_paramtrization_combinations *= len(metafunc.module.dunerc_command_list)
 
 
 @pytest.fixture(scope="module")
@@ -145,7 +145,6 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     produced by one pytest module
 
     """
-    dummy_resource_check = check_system_resources
     integtest_params = request.param
 
     #if isinstance(integtest_params, integtest_params_for_generated_dunedaq_config):
