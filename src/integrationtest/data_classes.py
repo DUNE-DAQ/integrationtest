@@ -46,6 +46,21 @@ class list_element_addition(config_substitution):
     additional_object_class: str = ""
     additional_object_id: str = ""
 
+class PosixSignal(Enum):
+    SIGINT = 2
+    SIGKILL = 9
+    SIGUSR1 = 10
+    SIGUSR2 = 12
+    SIGTERM = 15
+    SIGCONT = 18
+    SIGSTOP = 19
+
+@dataclass
+class system_signal_config:
+    application_label: str
+    signal: PosixSignal
+    delay_s: int
+    application_name: str = "daq_application"
 
 class ConnSvcControl(Enum):
     INTEGRATIONTEST = "integrationtest"
@@ -72,6 +87,9 @@ class integtest_param_base_class:
 
     # command-line arguments to be passed to run control
     dunerc_cmd_args: list[str] = field(default_factory=list)
+
+    # Signals to send to applications during the test
+    system_signal_configs: list[system_signal_config] = field(default_factory=list)
 
 @dataclass
 class integtest_params_for_generated_dunedaq_config(integtest_param_base_class):
