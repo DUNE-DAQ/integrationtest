@@ -74,6 +74,9 @@ class integtest_param_base_class:
     dunerc_cmd_args: list[str] = field(default_factory=list)
 
     # TRACE debug levels that should be enabled
+    # example: {"fast": {"ModuleX": 5}, "slow": {"ModuleY": 7}}
+    # Additional info is available in the comments for the
+    # trace_debug_settings fixture in integration_drunc.py.
     trace_debug_levels: dict = field(default_factory=dict)
 
 @dataclass
