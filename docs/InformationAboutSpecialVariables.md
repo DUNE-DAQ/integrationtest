@@ -60,6 +60,8 @@ Information about `daq_session_ingredients`:
         * this placeholder can be used, or the name of the DAQ session could be hard-coded in the `startup_strings`
 * when an integration test is run with verbosity level of 4 or greater, the command lines that are used to start the applications are printed on the console, and this output can be used to check if the desired substitutions were made
 
+Here is a snippet of code from the `basic_multapp_test.py` that shows how the `DAQSessionIngredients` are constructed in that integtest:
+
 ```
 # The commands to run in dunerc and the process manager shell
 dunerc_commands_1 = (
