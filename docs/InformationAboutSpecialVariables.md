@@ -49,11 +49,15 @@ Information about `daq_session_ingredients`:
 * the `DAQSessionIngredients` class has data members that allow developers to specify the applications that should be run and the commands that should be sent to the applications.  In this class, applications are represented by instances of the `DAQSessionApp` class and commands are listed in instances of the `DAQCommandSet` class.
 * the [basic_multiapp_test.py](https://github.com/DUNE-DAQ/drunc/blob/kbiery/multi_ctrl_proc_support/src/drunc/integtest/basic_multi_app_test.py) regression test in the `drunc` repo has an example of specifying three applications to be run in the DAQ session and specifying commands that are sent to two of those applications.
     * For reference, the relevant lines from `basic_multiapp_test.py` are copied below.
-    * There are several strings that are dynamically determined by the `integrationtest` infrastructure that we may want to include in our `DAQSessionApp` declarations.  To take this into account, placeholder strings have been defined.  These placeholder strings can be used in `DAQSessionApp` declarations and the `integrationtest` infrastructure will substitute the appropriate string at runtime.  The placeholders that are currently available are the following:
-        * `<proc_mgr_choice>` - the process manager type that should be used in the DAQ session
-        * `<config_data_file>` - the configuration data file that the infrastructure has created for the integtest
-        * `<config_session_name>` - the name of the configuration session that should be used for the DAQ session
-        * `<daq_session_name>` - the name that should be used to identify the DAQ session
+* There are several strings that are dynamically determined by the `integrationtest` infrastructure that we may want to include the XYZ fields in our `DAQSessionApp` declarations.  To take this into account, placeholder strings have been defined.  These placeholder strings can be used in `DAQSessionApp` declarations and the `integrationtest` infrastructure will substitute the appropriate string at runtime.  The placeholders that are currently available are the following:
+    * `<proc_mgr_choice>` - the process manager type that should be used in the DAQ session
+        * recall that the `integrationtest` infrastructure has support for user-specified (dynamic) process manager types.  If we don't want to make use of that functionality, we can hard-code the process manager type in our `DAQSessionApp.startup_strings`.  Of course, that reduces flexibility, but there may be cases where it would make sense.
+    * `<config_data_file>` - the configuration data file that the infrastructure has created for the integtest
+        * this should always be used since the `integrationtest` infrastructure creates a new, temporary config data file for each running of an integtst
+    * `<config_session_name>` - the name of the configuration session that should be used for the DAQ session
+        * this could be hard-coded, but it is safer to let it get filled in dynamically
+    * `<daq_session_name>` - the name that should be used to identify the DAQ session
+        * this can either be used or hard-coded
 
 ```
 # The commands to run in dunerc and the process manager shell
