@@ -53,7 +53,7 @@ Information about `daq_session_ingredients`:
     * `<proc_mgr_choice>` - the process manager type that should be used in the DAQ session
         * recall that the `integrationtest` infrastructure has support for user-specified (dynamic) process manager types.  If we don't want to make use of that functionality, we can hard-code the process manager type in our `DAQSessionApp.startup_strings`.  Of course, that reduces flexibility, but there may be cases where it would make sense.
     * `<config_data_file>` - the configuration data file that the infrastructure has created for the integtest
-        * this should always be used since the `integrationtest` infrastructure creates a new, temporary config data file for each running of an integtest
+        * this placeholder string should always be used since the `integrationtest` infrastructure creates a new, temporary config data file for each running of an integtest
     * `<config_session_name>` - the name of the configuration session that should be used for the DAQ session
         * this could be hard-coded, but it is safer to let it get filled in dynamically
     * `<daq_session_name>` - the name that should be used to identify the DAQ session
@@ -97,5 +97,3 @@ dsi = DAQSessionIngredients(app_list, cmd_set_list)
 # Declare the special variable that tells the integrationtest infrastructure what we want to run
 daq_session_ingredients = {"MultiRCAppSession": dsi}
 ```
-
-(More details coming soon.)
