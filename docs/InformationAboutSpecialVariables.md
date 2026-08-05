@@ -1,16 +1,16 @@
 # Special variables that are used by the integrationtest infrastructure
 
-04-Aug-2026, Kurt Biery
+05-Aug-2026, Kurt Biery
 
 ## Introduction
 
 In the Pytest files that we write (our integtests), there are several special variables that are used to communication information about the desired conditions of the testing to the `integrationtest` infrastructure.  This information includes things such as configuration parameters and run control commands.
 
-This document describes the special variables that are currently available and how they can and should be used.
+This document describes the special variables that are currently available and how they can, and should, be used.
 
 ### Computer resource validation parameters
 
-This is communicated by the `resource_validator` special variable.  It should point to an instance of the `ResourceValidator` class that is defined in [integrationtest/src/integrationtest/resource_validation.py](https://github.com/DUNE-DAQ/integrationtest/blob/develop/src/integrationtest/resource_validation.py).
+This is communicated by the `resource_validator` special variable.  It should point to an instance of the `ResourceValidator` class.  This class is defined in [integrationtest/src/integrationtest/resource_validation.py](https://github.com/DUNE-DAQ/integrationtest/blob/develop/src/integrationtest/resource_validation.py).
 
 (More details coming soon.)
 
@@ -38,16 +38,48 @@ Information about `dunerc_command_list`:
 * it is expected to contain a Python list of the commands (strings) that are passed to run control in "batch" mode
     * some examples:
         * `dunerc_command_list = ("boot conf start --run-number 101 wait 1 enable-triggers wait ".split() + [str(run_duration)] + "disable-triggers wait 2 drain-dataflow wait 2 stop-trigger-sources stop scrap terminate".split())`
-        * `dunerc_command_list = ["boot", "conf", "start", "--run-number", "101", "wait", str(10), "stop_run", "shutdown"]`
-* it can contain a single list of commands (as shown above), or it can contain a dictionary of one or more lists that should be run.  In this way, multiple DAQ sessions with different sets of commands can be run from an single integtest.
-    * for example:
-        * `dunerc_command_list = {"Session1": ["boot", "terminate"], "Session2": ["boot", "conf", "shutdown"]}`
+        * `dunerc_command_list = ["boot", "conf", "start", "--run-number", "101", "wait", str(1), "enable-triggers", "wait", str(20), "disable-triggers", "stop-run", "shutdown"]`
+* in addition to containing a single list of commands (as shown above), this variable can contain a dictionary of one or more lists of commands.  With this functionality, multiple DAQ sessions with different sets of commands can be run from an single integtest.
+    * here is an example of this type declaration:
+        * `dunerc_command_list = {"DAQ_Session_1": ["boot", "conf", "start", "--run-number", "101", "wait", str(1), "enable-triggers", "wait", str(20), "disable-triggers", "stop-run", "shutdown"], "DAQ Session 2": ["boot", "conf", "start", "--run-number", "101", "wait", str(3), "enable-triggers", "wait", str(20), "disable-triggers", "stop-run", "scrap", "terminate"]}`
 
 Information about `daq_session_ingredients`:
 * this variable was recently introduced so that developers of integtests can specify multiple control applications to be run in a given (integtest) DAQ session
-* at the moment, this variable needs to contain a dictionary with one or more entries, and each entry should contain a string key (with a word or phrase that describes the DAQ session) and an instance of the `DAQSessionIngredients` class as the value.  The `DAQSessionIngredients` class is defined in [integrationtest/src/integrationtest/data_classes.py](https://github.com/DUNE-DAQ/integrationtest/blob/develop/src/integrationtest/data_classes.py).
+* at the moment, this variable needs to contain a dictionary with one or more entries, and each entry should contain a string key (with a word or phrase that describes the DAQ session) and an instance of the `DAQSessionIngredients` class as the value.  The `DAQSessionIngredients` class is defined in [integrationtest/src/integrationtest/data_classes.py](https://github.com/DUNE-DAQ/integrationtest/blob/0fe60d9b1c1aa697ec9524c4aaf1507aaa3c6b2a/src/integrationtest/data_classes.py#L139).
 * the `DAQSessionIngredients` class has data members that allow developers to specify the applications that should be run and the commands that should be sent to the applications.  In this class, applications are represented by instances of the `DAQSessionApp` class and commands are listed in instances of the `DAQCommandSet` class.
-* the [basic_multiapp_test.py](https://github.com/DUNE-DAQ/drunc/tree/develop/src/drunc/integtest) regression test in the `drunc` repo has an example of specifying three applications to be run in the DAQ session and specifying commands that are sent to two of those applications.
-    * (copy the relevant snippet to here?)
+* the [basic_multiapp_test.py](https://github.com/DUNE-DAQ/drunc/blob/kbiery/multi_ctrl_proc_support/src/drunc/integtest/basic_multi_app_test.py) regression test in the `drunc` repo has an example of specifying three applications to be run in the DAQ session and specifying commands that are sent to two of those applications.
+    * For reference, here are the relevant lines copied from the `basic_multiapp_test.py`:
+ 
+```
+# The commands to run in dunerc and the process manager shell
+dunerc_commands_1 = (
+    "boot conf start --run-number 101 wait 1 enable-triggers wait ".split()
+    + [str(run_duration)] + ["disable-triggers"]
+)
+dunerc_commands_2 = (
+    "drain-dataflow stop-trigger-sources stop wait 2 scrap terminate".split()
+)
+pmshell_command = ["ps"]
+
+pm_port = find_free_port(50020, 52000)
+
+procmsg_startup_commands = ["drunc-process-manager", "<proc_mgr_choice>", str(pm_port)]
+pmapp = DAQSessionApp("pm", procmsg_startup_commands)
+
+pmshell_startup_commands = ["drunc-process-manager-shell", f"grpc://localhost:{pm_port}"]
+pmshellapp = DAQSessionApp("pmshell", pmshell_startup_commands)
+
+drunc_startup_commands = ["drunc-unified-shell", f"grpc://localhost:{pm_port}", "<config_data_file>", "<config_session_name>", "<daq_session_name>"]
+druncapp = DAQSessionApp("drunc", drunc_startup_commands)
+
+cmd_set_1 = DAQCommandSet("drunc", dunerc_commands_1, CommandWaitParameters(style=CommandWaitStyle.ECHO))
+cmd_set_2 = DAQCommandSet("pmshell", pmshell_command, CommandWaitParameters(style=CommandWaitStyle.TIME))
+cmd_set_3 = DAQCommandSet("drunc", dunerc_commands_2, CommandWaitParameters(style=CommandWaitStyle.ECHO))
+
+app_list = [ pmapp, pmshellapp, druncapp ]
+cmd_set_list = [ cmd_set_1, cmd_set_2, cmd_set_3 ]
+dsi = DAQSessionIngredients(app_list, cmd_set_list)
+daq_session_ingredients = {"MultiRCAppSession": dsi}
+```
 
 (More details coming soon.)
