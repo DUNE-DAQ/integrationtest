@@ -37,6 +37,9 @@ from daqconf.set_rc_controller_port import (
 from daqconf.set_session_env_var import (
     set_session_env_var,
 )
+from daqconf.get_session_env_var import (
+    get_session_env_var,
+)
 from daqconf.get_session_apps import get_segment_apps
 
 
@@ -297,14 +300,6 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
     # 05-Nov-2025, KAB, MiR: added the setting of a random RC port
     set_rc_controller_port(oksfile=str(config_db), session_name=integtest_params.config_session_name, rc_port=0)
 
-    # 03-Jul-2025, KAB: added the setting of the TRACE_FILE env var in the OKS Session,
-    # if it is set in the user's environment, and if it is not already set in the configuration.
-    try:
-        trace_file_env_var = os.environ["TRACE_FILE"]
-        set_session_env_var(str(config_db), integtest_params.config_session_name, "TRACE_FILE", trace_file_env_var, overwrite=False)
-    except KeyError:
-        pass
-
     dal = conffwk.dal.module("generated", "schema/appmodel/fdmodules.schema.xml")
     db = conffwk.Configuration("oksconflibs:" + str(config_db))
 
@@ -395,7 +390,8 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
 
 
 @pytest.fixture(scope="module")
-def run_dunerc(request, create_config_files, process_manager_type, cleanup_hdf5_files, tmp_path_factory):
+def run_dunerc(request, create_config_files, process_manager_type, trace_debug_settings,
+               cleanup_hdf5_files, tmp_path_factory):
     """Run drunc with the OKS DB files created by `create_config_files`. The
     commands specified by the `dunerc_command_list` variable in the
     test module are executed. If `dunerc_command_list`'s items are
@@ -770,6 +766,115 @@ def check_system_resources(request):
         if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
             resval_report_string = resval.get_recommended_resources_report()
             print(f"\n*** Note: {resval_report_string}")
+
+
+@pytest.fixture(scope="module")
+def trace_debug_settings(request, create_config_files):
+    """Set the appropriate env vars and trace levels for debugging, if requested.
+    """
+
+    # There are a number of things that we want this fixture to do for us.
+    #
+    # 1) If the user has the TRACE_FILE env var set in their shell environment,
+    #    we want to copy that into the execution environment of the DAQ processes.
+    #    That is done by setting the appropriate parameters in the OKS configuration.
+    #    * We do this even if the OKS configuration already has a setting for the
+    #      TRACE_FILE env var in it. This gives users the most control - if they
+    #      set up trace locally before running integtests, those are the settings
+    #      that get used.
+    #
+    # 2) If the user has specified one or more TRACE debug levels that should be
+    #    enabled, we do that.
+    #    * The format of a TRACE level request is:
+    #      (conf_dict.)trace_debug_levels = {"<path type, fast or slow>":
+    #            {"<trace name>": <trace level}}
+    #      For example: {"fast": {"ModuleX": 5}, "slow": {"ModuleY": 7}}
+    #    * We use the TRACE_FILE that is defined in the OKS configuration to set
+    #      the requested levels. If none is defined, then we make up a temporary
+    #      one in the users pytest directory, *and* we write the information about
+    #      the temporary file into the OKS configuration.
+    #    * We set the TRACE_FILE in the Linux environment in which the integtest
+    #      is running.  We do this so that subsequent 'trace_cntl', etc.  commands
+    #      know which TRACE_FILE to use.
+    #    * We set the requested TRACE levels using the specified path ('fast' or
+    #      'slow', the requested TRACE name, and the requested level.
+    #    * As the test is being torn down (after the "yield" command), we restore
+    #      the original levels for any TRACE names that we touched.
+    #    * For all of the TRACE shell commands that we run, we set the
+    #      subprocess.run() "check" option to True so that an exception will get
+    #      thrown if there is a problem.
+
+    # Set the TRACE_FILE env var in the OKS Session, if it is set in the user's environment.
+    try:
+        trace_file_env_var = os.environ["TRACE_FILE"]
+        set_session_env_var(str(create_config_files.dunedaq_config_file),
+                            create_config_files.integtest_params.config_session_name,
+                            "TRACE_FILE", trace_file_env_var, overwrite=True)
+    except KeyError:
+        # if the env var is not set in the user's environment, we simply continue
+        pass
+
+    # If the integtest specifies one or more TRACE levels to be set, we do that here.
+    # We build up a list of commands that will be used to restore the TRACE levels
+    # to their original values once the test is done.
+    restore_trace_settings = []
+    if len(create_config_files.integtest_params.trace_debug_levels) > 0:
+
+        # check if TRACE is already enabled in the OKS configuration
+        # (we trust the logic above to copy a user-environment TRACE_FILE into the OKS config)
+        trace_file_value = get_session_env_var(str(create_config_files.dunedaq_config_file),
+                                               create_config_files.integtest_params.config_session_name,
+                                               "TRACE_FILE", quiet=True)
+
+        # if not, then enable it by creating a temporary TRACE_FILE
+        if trace_file_value is None:
+            trace_file_value = str(create_config_files.dunedaq_config_dir) + "/integtest_dunedaq.trace"
+            set_session_env_var(str(create_config_files.dunedaq_config_file),
+                                create_config_files.integtest_params.config_session_name,
+                                "TRACE_FILE", trace_file_value, overwrite=True)
+
+        # set the env var in the environment of this process
+        os.environ["TRACE_FILE"] = trace_file_value
+
+        # fetch information from TRACE that we'll need in the next step
+        tlvls_result = subprocess.run(["trace_cntl", "tids"], capture_output=True, text=True, check=True)
+        tlvls_output = tlvls_result.stdout  # the full listing of the current level settings
+
+        # set the requested debug levels, and
+        # build up the list of commands that we'll use to restore the original TRACE settings
+        for trace_type in create_config_files.integtest_params.trace_debug_levels.keys(): # fast or slow
+            requested_levels = create_config_files.integtest_params.trace_debug_levels[trace_type]
+            if type(requested_levels) == dict:
+                for key, value in requested_levels.items():
+                    mask_result = subprocess.run(["bitN_to_mask", f"DEBUG+{value}"], capture_output=True,
+                                                 text=True, check=True)
+                    enable_mask = mask_result.stdout
+
+                    fast_mask = "0x1ff"
+                    slow_mask = "0xff"
+                    for text_line in tlvls_output.splitlines():
+                        tokens = text_line.split()
+                        if key == tokens[1]:
+                            fast_mask = tokens[2]
+                            slow_mask = tokens[3]
+                            break
+
+                    lc_trace_type = trace_type.lower()
+                    if "fast" in lc_trace_type:
+                        subprocess.run(["trace_cntl", "-n", key, "lvlset", str(enable_mask), "0", "0"], check=True)
+                        subprocess.run(["trace_cntl", "modeM", "1"], check=True)
+                        restore_trace_settings.append(["trace_cntl", "-n", key, "lvlmskM", fast_mask])
+                    if "slow" in lc_trace_type:
+                        subprocess.run(["trace_cntl", "-n", key, "lvlset", "0", str(enable_mask), "0"], check=True)
+                        subprocess.run(["trace_cntl", "modeS", "1"], check=True)
+                        restore_trace_settings.append(["trace_cntl", "-n", key, "lvlmskS", slow_mask])
+
+    # pause here to let the DAQ system and pytest tests run
+    yield
+
+    # restore the original TRACE level settings, if needed
+    for restore_cmd in restore_trace_settings:
+        subprocess.run(restore_cmd, check=True)
 
 
 @pytest.fixture(scope="module")
