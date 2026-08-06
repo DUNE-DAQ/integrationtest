@@ -16,6 +16,7 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
                       shared_data: CommandProcessingSharedData, verbosity_level):
     """Asynchronously reads lines from a stream and processes them immediately."""
     full_output = ""
+    observed_command_prompt = ""
 
     # store the full output in a log file to be checked for problems and for later reference
     with open(f"{run_dir}/log_{getpass.getuser()}_{app_exe_name}_console_output.txt", "w", encoding="utf-8") as ff:
@@ -45,6 +46,7 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
                     if "=====" in trimmed_line:
                         continue
                     if trimmed_line.endswith(r">"):
+                        observed_command_prompt = trimmed_line
                         continue
                     if verbosity_level >= IntegtestVerbosityLevels.drunc_debug:
                         now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
@@ -58,8 +60,6 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
             # requested, as well as writing it to a log file and adding it to a string that
             # we pass back to the user
             should_be_printed = verbosity_level >= IntegtestVerbosityLevels.full_output
-
-            # get rid of full_output_activation
 
             # check for errors and warnings for all verbosity levels
             if should_be_printed == False:
@@ -81,6 +81,11 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
                     if "Booting session" in decoded_line or "Running transition" in decoded_line \
                        or ("wait" in decoded_line and "running" in decoded_line) or "exit code" in decoded_line:
                         should_be_printed = True
+
+            # remove the application command prompt from the front of the line, if needed
+            if len(observed_command_prompt) > 0 and decoded_line.startswith(observed_command_prompt):
+                tmp_line = decoded_line.removeprefix(observed_command_prompt)
+                decoded_line = tmp_line.lstrip()
 
             # actually do the printout
             if should_be_printed:
