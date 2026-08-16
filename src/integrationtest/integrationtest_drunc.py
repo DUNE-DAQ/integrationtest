@@ -287,7 +287,6 @@ def create_config_files(request, tmp_path_factory, check_system_resources):
             session_name=integtest_params.config_session_name,
             op_env=integtest_params.op_env,
             connectivity_service_is_infrastructure_app=runcontrol_starts_connsvc,
-            disable_connectivity_service=no_integtest_connsvc,
         )
 
     consolidate_db(str(temp_config_db), str(config_db))
