@@ -141,10 +141,25 @@ async def send_commands(target_proc, proc_name, shared_data: CommandProcessingSh
                 if shared_data.number_of_lines_printed_to_the_console == 0:
                     print(".", end="")
 
-    # wait for the commands to finish, if requested
+    # wait for the command(s) to finish, if requested
     if not wait_params.wait_for_command_completion:
         return
-    if wait_params.style == CommandWaitStyle.ECHO:
+    if wait_params.style == CommandWaitStyle.TIME_PLUS_EXIT:
+        # The idea behind this command style is that we want to wait until the process has
+        # exited and we want to support 'exit' timeout values that are not long and arbitrary.
+        # In order to do that, we wait for a lull in the console output before waiting
+        # for the process exit.  So, the exit timeout can hopefully be relative to the
+        # finishing of the console output.
+        await wait_for_console_output_lull(cmd_start_time, wait_params, shared_data)
+        sleep_interval: float = wait_params.timeout_waiting_for_exit / 10
+        for idx in range(10):
+            if target_proc.returncode is not None:
+                break
+            await asyncio.sleep(sleep_interval)
+        if target_proc.returncode is None:
+            now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
+            print(f"[integtest_proc_mgmt {now_string}] WARNING: timeout waiting for {proc_name} to exit in response to {cmd_list}")
+    elif wait_params.style == CommandWaitStyle.ECHO:
         shared_data.cmd_cmplt_evt.clear()
         target_proc.stdin.write(("echo '*** COMMAND HAS COMPLETED ***'\n").encode())
         await target_proc.stdin.drain()
@@ -275,6 +290,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
                 print(f"[integtest_proc_mgmt {now_string}] Error: Process '{target}' not found.")
 
     except asyncio.CancelledError:
+        print(f"\n[integtest_proc_mgmt {now_string}] Received CancelledError...")
         pass
     finally:
         async with shared_data.lock:
@@ -291,14 +307,24 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
             print(f"\n[integtest_proc_mgmt {now_string}] Shutting down processes...")
         for proc_name, proc_info in reversed(processes.items()):
             if proc_info.process.returncode is None:
+                if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+                    now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
+                    print(f"\n[integtest_proc_mgmt {now_string}] Terminating the {proc_name} process...")
                 proc_info.process.terminate()
                 await proc_info.process.wait()
             proc_results[proc_name] = {"returncode": proc_info.process.returncode}
 
         # Cancel background reading tasks
         for proc_name, task in tasks.items():
-            task.cancel()
-            process_output = await task
-            proc_results[proc_name]["stdout"] = process_output
+            try:
+                task.cancel()
+                process_output = await task
+                proc_results[proc_name]["stdout"] = process_output
+            except asyncio.CancelledError:
+                proc_results[proc_name]["stdout"] = "asyncio.CancelledError"
+            except asyncio.InvalidStateError:
+                proc_results[proc_name]["stdout"] = "asyncio.InvalidStateError"
+            except asyncio.TimeoutError:
+                proc_results[proc_name]["stdout"] = "asyncio.TimeoutError"
 
     return proc_results

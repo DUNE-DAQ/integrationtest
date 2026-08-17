@@ -598,15 +598,10 @@ def run_dunerc(request, create_config_files, process_manager_type, trace_debug_s
     if verbosity_level < IntegtestVerbosityLevels.full_output:
         sys.stdout = original_stdout
 
-    exit_cmd = DAQCommandSet("drunc", [ "exit" ], CommandWaitParameters(style=CommandWaitStyle.TIME))
+    exit_cmd = DAQCommandSet("drunc", [ "exit" ], CommandWaitParameters(style=CommandWaitStyle.TIME_PLUS_EXIT))
     if user_supplied_apps:
         dsi = copy.deepcopy(run_control_commands)
         for app in dsi.applications:
-            # add an exit command to the end of the command list (for each app)
-            tmp_exit_cmd = copy.deepcopy(exit_cmd)
-            tmp_exit_cmd.target = app.alias
-            dsi.commands.append(tmp_exit_cmd)
-
             # replace placeholders in the command startup strings
             for idx in range(len(app.startup_strings)):
                 if app.startup_strings[idx] == "<proc_mgr_choice>":
@@ -637,6 +632,13 @@ def run_dunerc(request, create_config_files, process_manager_type, trace_debug_s
                 result = subprocess.run(help_cmds, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 if result.returncode == 0:
                     app.startup_strings[1:1] = create_config_files.integtest_params.dunerc_cmd_args
+
+        # add an exit command to the end of the command list, for each app, in reverse order
+        for app in reversed(dsi.applications):
+            tmp_exit_cmd = copy.deepcopy(exit_cmd)
+            tmp_exit_cmd.target = app.alias
+            dsi.commands.append(tmp_exit_cmd)
+
     else:
         popen_command_list = [dunerc] + create_config_files.integtest_params.dunerc_cmd_args \
             + dunerc_option_strings + [process_manager_type] + [str(create_config_files.dunedaq_config_file)] \

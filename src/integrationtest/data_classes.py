@@ -132,6 +132,7 @@ class CreateConfigResult:
 class CommandWaitStyle(Enum):
     ECHO = "echo"
     TIME = "time"
+    TIME_PLUS_EXIT = "time_plus_exit"
     NONE = "none"
 
 @dataclass
@@ -140,6 +141,7 @@ class CommandWaitParameters:
     style: CommandWaitStyle = CommandWaitStyle.TIME
     timeout_waiting_for_first_msg: int = 2  # seconds
     wait_time_after_last_msg: int = 2  # seconds
+    timeout_waiting_for_exit: int = 5  # seconds
 
 @dataclass
 class DAQSessionApp:
