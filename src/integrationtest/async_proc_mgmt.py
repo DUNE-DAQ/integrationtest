@@ -280,7 +280,10 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
                         else:
                             working_cmd_list.append(daq_cmd)
                 # restore the intended order of the commands to be sent to the process
-                reformatted_cmd_list = reversed(working_cmd_list)
+                # (The "reversed" function returns an iterator that can only be used once.
+                #  It seems safer to assign a fully-formed list to the this variable,
+                #  so, we create a new list from the iterator.)
+                reformatted_cmd_list = list(reversed(working_cmd_list))
 
                 await send_commands(proc, target, shared_data, reformatted_cmd_list,
                                     cmd_set.wait_params, verbosity_level)
