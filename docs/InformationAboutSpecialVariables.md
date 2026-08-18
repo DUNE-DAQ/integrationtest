@@ -52,7 +52,7 @@ Information about `daq_session_ingredients`:
 * the `DAQSessionIngredients` class has data members that allow developers to specify the applications that should be run and the commands that should be sent to the processes.  In this class, applications are represented by instances of the `DAQSessionApp` class and commands are listed in instances of the `DAQCommandSet` class.  The `DAQCommandSet` has a field that specifies the process that we want to send the commands to.
     * reference information:
 
-```
+```python
 @dataclass
 class DAQSessionIngredients:
     applications: list[DAQSessionApp]
@@ -106,7 +106,7 @@ class CommandWaitStyle(Enum):
 
 Here is a snippet of code from the `basic_multapp_test.py` that shows how the `DAQSessionIngredients` are constructed in that integtest:
 
-```
+```python
 # The commands to run in dunerc and the process manager shell
 dunerc_commands_1 = (
     "boot conf start --run-number 101 wait 1 enable-triggers wait ".split()
