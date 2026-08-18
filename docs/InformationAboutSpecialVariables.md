@@ -1,6 +1,6 @@
 # Special variables that are used by the integrationtest infrastructure
 
-05-Aug-2026, Kurt Biery
+18-Aug-2026, Kurt Biery
 
 ## Introduction
 
@@ -47,6 +47,48 @@ Information about `daq_session_ingredients`:
 * this variable was recently introduced so that developers of integtests can specify multiple control applications to be run in a given (integtest) DAQ session
 * at the moment, this variable needs to contain a dictionary with one or more elements, and each element should contain a string key (with a word or phrase that describes the DAQ session) and an instance of the `DAQSessionIngredients` class as the value.  The `DAQSessionIngredients` class is defined in [integrationtest/src/integrationtest/data_classes.py](https://github.com/DUNE-DAQ/integrationtest/blob/0fe60d9b1c1aa697ec9524c4aaf1507aaa3c6b2a/src/integrationtest/data_classes.py#L139).
 * the `DAQSessionIngredients` class has data members that allow developers to specify the applications that should be run and the commands that should be sent to the applications.  In this class, applications are represented by instances of the `DAQSessionApp` class and commands are listed in instances of the `DAQCommandSet` class.  The `DAQCommandSet` has a field that specifies the application that we want to send the commands to.
+    * reference information:
+
+```
+@dataclass
+class DAQSessionIngredients:
+    applications: list[DAQSessionApp]
+    commands: list[DAQCommandSet]
+
+@dataclass
+class DAQSessionApp:
+    alias: str  # a short-hand name for the process that is started
+    startup_strings: list[str]  # the elements of the command string that should be used to start the application
+    wait_time_after_start: int = 2  # seconds to sleep after spawning the process
+
+@dataclass
+class DAQCommandSet:
+    target: str  # the name of the process that should receive the commands
+    command_list: list[str]  $ the list of commands, e.g. ["boot", "conf"]
+    wait_params: CommandWaitParameters = field(default_factory=lambda: CommandWaitParameters())
+
+@dataclass
+class CommandWaitParameters:  # please see the comments below for information about this class, etc.
+    wait_for_command_completion: bool = True
+    style: CommandWaitStyle = CommandWaitStyle.TIME
+    timeout_waiting_for_first_msg: int = 2  # seconds
+    wait_time_after_last_msg: int = 2  # seconds
+    timeout_waiting_for_exit: int = 5  # seconds
+
+class CommandWaitStyle(Enum):
+    ECHO = "echo"
+    TIME = "time"
+    TIME_PLUS_EXIT = "time_plus_exit"
+    NONE = "none"
+```
+
+* Here is some additional information about `CommandWaitParameters`:
+    * the commands that are specified in a `DAQCommandSet` are sent individually to the target process without any delay between them.  So, we typically send all of the commands in the set in a fraction of a second, while the target process could take tens of seconds to execute all of them.
+    * when there is only one control process in an integtest, this rapid-fire approach may be all that we need, because a single process handles the throttling of the commands, running them one after another.  However, when there are multiple control processes in an integtest, we may want to send a set of commands to Process1, wait for those to finish, and only then send a set of commands to Process2.  This demonstrates a need to allow the user to specify whether they want the integrationtest infrastructure to wait for each command set to finish before moving on to the next set of commands, and if so, what style of waiting they would like be used.  This is the motivation for the `CommandWaitParameters` class.
+    * the currently-supported wait styles are ECHO, TIME, and TIME_PLUS_EXIT.
+    * the ECHO wait style makes use of the `echo` command that is available in some of our control applications to clearly identify when a set of commands has finished.  So, if a user specifies a command set of `['boot', 'conf']`, the `integrationtest` infrastructure appends an `echo` command with a special string to the set, i.e. `['boot', 'conf', 'echo "<special string>"']`.  When the `integrationtest` infrastructure sees the special string in the output of the target process, it knows that the command set has finished.
+    * the TIME wait style simply waits for configured amounts of time for console output to start and then stop.  The idea here is to use the console output as an indicator of activity, and when the console output stops, presume that activity related to the requested command(s) has stopped.  
+    * the TIME_PLUS_EXIT wait style is intended to be used with "exit" commands.  The idea here is to wait for console output to stop and then wait for the process to exit (within a configurable timeout).
 * the [basic_multiapp_test.py](https://github.com/DUNE-DAQ/drunc/blob/kbiery/multi_ctrl_proc_support/src/drunc/integtest/basic_multiapp_test.py) regression test in the `drunc` repo has an example of specifying three applications to be run in the DAQ session and specifying commands that are sent to two of those applications.
     * For reference, the relevant lines from `basic_multiapp_test.py` are copied below.
 * There are several strings that are dynamically determined by the `integrationtest` infrastructure that we may want to include in the `startup_strings` field in our `DAQSessionApp` declarations.  To take this into account, placeholder strings have been defined.  These placeholder strings can be used in `DAQSessionApp` declarations and the `integrationtest` infrastructure will substitute the appropriate value at runtime.  The placeholders that are currently available are the following:
