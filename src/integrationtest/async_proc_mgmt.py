@@ -7,9 +7,12 @@ import time
 from integrationtest.data_classes import *
 from integrationtest.verbosity_helper import *
 from datetime import datetime, timezone
+from typing import Final
 
 import functools
 print = functools.partial(print, flush=True)  # always flush print() output
+
+PROCESS_ECHO_STRING: Final[str] = "*** COMMAND HAS COMPLETED ***"
 
 
 async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_dir,
@@ -30,7 +33,7 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
 
             # if the special end-of-command string has been echo-ed by the process,
             # send the relevant signal to any waiting task by setting the completion event
-            if "*** COMMAND HAS COMPLETED ***" in decoded_line:
+            if PROCESS_ECHO_STRING in decoded_line:
                 #print("=== Setting the completion event ===", flush=True)
                 shared_data.cmd_cmplt_evt.set()
                 continue
@@ -48,7 +51,7 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
                     if trimmed_line.endswith(r">"):
                         observed_command_prompt = trimmed_line
                         continue
-                    if verbosity_level >= IntegtestVerbosityLevels.drunc_debug:
+                    if verbosity_level >= IntegtestVerbosityLevels.full_output:
                         now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
                         print(f"[integtest_proc_mgmt {now_string}] Help command output: {decoded_line}")
                     the_cmds = trimmed_line.split()
@@ -121,8 +124,9 @@ async def wait_for_console_output_lull(start_time, wait_params: CommandWaitParam
         now = time.time()
 
 
-async def send_commands(target_proc, proc_name, shared_data: CommandProcessingSharedData,
+async def send_commands(target_proc_info, proc_name, shared_data: CommandProcessingSharedData,
                         cmd_list, wait_params, verbosity_level):
+    target_proc = target_proc_info.process
     if target_proc.returncode is not None:  # Check if process is still running
         now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
         print(f"[integtest_proc_mgmt {now_string}] Error: {proc_name} has already exited, unable to send \"{cmd_list}\".")
@@ -150,25 +154,37 @@ async def send_commands(target_proc, proc_name, shared_data: CommandProcessingSh
         # In order to do that, we wait for a lull in the console output before waiting
         # for the process exit.  So, the exit timeout can hopefully be relative to the
         # finishing of the console output.
+        # Of course, if the app doesn't support the "exit" command, there is no sense in
+        # waiting for the process to respond to it.  But, we tell users that we skipped it.
         await wait_for_console_output_lull(cmd_start_time, wait_params, shared_data)
-        sleep_interval: float = wait_params.timeout_waiting_for_exit / 10
-        for idx in range(10):
-            if target_proc.returncode is not None:
-                break
-            await asyncio.sleep(sleep_interval)
-        if target_proc.returncode is None:
-            now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
-            print(f"[integtest_proc_mgmt {now_string}] WARNING: timeout waiting for {proc_name} to exit in response to {cmd_list}")
+        if "exit" in target_proc_info.supported_commands:
+            sleep_interval: float = wait_params.timeout_waiting_for_exit / 10
+            for idx in range(10):
+                if target_proc.returncode is not None:
+                    break
+                await asyncio.sleep(sleep_interval)
+            if target_proc.returncode is None:
+                now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
+                print(f"[integtest_proc_mgmt {now_string}] WARNING: timeout waiting for {proc_name} to exit in response to {cmd_list}")
+        else:
+            if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+                now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
+                print(f"[integtest_proc_mgmt {now_string}] The {proc_name} process doesn't support the 'exit' command, so waiting for exit was skipped")
     elif wait_params.style == CommandWaitStyle.ECHO:
-        shared_data.cmd_cmplt_evt.clear()
-        target_proc.stdin.write(("echo '*** COMMAND HAS COMPLETED ***'\n").encode())
-        await target_proc.stdin.drain()
-        if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+        if "echo" in target_proc_info.supported_commands:
+            shared_data.cmd_cmplt_evt.clear()
+            target_proc.stdin.write((f"echo '{PROCESS_ECHO_STRING}'\n").encode())
+            await target_proc.stdin.drain()
+            if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
+                now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
+                print(f"[integtest_proc_mgmt {now_string}] Sent command to {proc_name}: echo '{PROCESS_ECHO_STRING}'")
+            await shared_data.cmd_cmplt_evt.wait()
+            shared_data.cmd_cmplt_evt.clear()
+        else:
             now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
-            print(f"[integtest_proc_mgmt {now_string}] Sent command to {proc_name}: echo '*** COMMAND HAS COMPLETED ***'")
-        await shared_data.cmd_cmplt_evt.wait()
-        shared_data.cmd_cmplt_evt.clear()
-    elif wait_params.style == CommandWaitStyle.TIME:
+            print(f"[integtest_proc_mgmt {now_string}] The {proc_name} process doesn't support the 'echo' command, using TIME wait instead'")
+            await wait_for_console_output_lull(cmd_start_time, wait_params, shared_data)
+    else:  # treat everything else as wait_params.style == CommandWaitStyle.TIME:
         await wait_for_console_output_lull(cmd_start_time, wait_params, shared_data)
 
 
@@ -225,7 +241,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
         async with shared_data.lock:
             shared_data.results_of_parsing_help_output = []
             shared_data.parsing_of_help_output_in_progress = True
-        await send_commands(proc_info.process, proc_name, shared_data, help_cmd,
+        await send_commands(proc_info, proc_name, shared_data, help_cmd,
                             help_cmd_wait_params, verbosity_level)
         async with shared_data.lock:
             shared_data.parsing_of_help_output_in_progress = False
@@ -239,7 +255,6 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
             target = cmd_set.target
             if target in processes:
                 proc_info = processes[target]
-                proc = proc_info.process
 
                 # re-organize the DAQ commands to provide valid combinations, if needed
                 working_cmd_list = []
@@ -285,7 +300,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
                 #  so, we create a new list from the iterator.)
                 reformatted_cmd_list = list(reversed(working_cmd_list))
 
-                await send_commands(proc, target, shared_data, reformatted_cmd_list,
+                await send_commands(proc_info, target, shared_data, reformatted_cmd_list,
                                     cmd_set.wait_params, verbosity_level)
 
             else:
