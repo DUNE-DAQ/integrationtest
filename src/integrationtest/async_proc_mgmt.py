@@ -34,7 +34,6 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
             # if the special end-of-command string has been echo-ed by the process,
             # send the relevant signal to any waiting task by setting the completion event
             if PROCESS_ECHO_STRING in decoded_line:
-                #print("=== Setting the completion event ===", flush=True)
                 shared_data.cmd_cmplt_evt.set()
                 continue
 
@@ -44,7 +43,7 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
                     trimmed_line = decoded_line.strip()
                     if len(trimmed_line) == 0:
                         continue
-                    if "ocumented" in trimmed_line:
+                    if "documented commands" in trimmed_line.lower():
                         continue
                     if "=====" in trimmed_line:
                         continue
@@ -65,21 +64,21 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
             should_be_printed = verbosity_level >= IntegtestVerbosityLevels.full_output
 
             # check for errors and warnings for all verbosity levels
-            if should_be_printed == False:
+            if not should_be_printed:
                 lc_line = decoded_line.lower()
                 if ("error" in lc_line and (not "In error" in decoded_line and not "Endpoint" in decoded_line)) \
                    or "warning" in lc_line or "critical" in lc_line:
                     should_be_printed = True
 
             # check for basic transition messages, if that level of verbosity is requested
-            if should_be_printed == False:
+            if not should_be_printed:
                 if verbosity_level >= IntegtestVerbosityLevels.drunc_boot_terminate:
                     if "Booting session" in decoded_line or \
                        ("Current FSM status is " in decoded_line and ("initial" in decoded_line or "running" in decoded_line)):
                         should_be_printed = True
 
             # check for all transition messages, if that level of verbosity is requested
-            if should_be_printed == False:
+            if not should_be_printed:
                 if verbosity_level >= IntegtestVerbosityLevels.drunc_transitions:
                     if "Booting session" in decoded_line or "Running transition" in decoded_line \
                        or ("wait" in decoded_line and "running" in decoded_line) or "exit code" in decoded_line:
