@@ -90,6 +90,12 @@ class integtest_param_base_class:
 
     # Signals to send to applications during the test
     system_signal_configs: list[system_signal_config] = field(default_factory=list)
+    
+    # TRACE debug levels that should be enabled
+    # example: {"fast": {"ModuleX": 5}, "slow": {"ModuleY": 7}}
+    # Additional info is available in the comments for the
+    # trace_debug_settings fixture in integration_drunc.py.
+    trace_debug_levels: dict = field(default_factory=dict)
 
 @dataclass
 class integtest_params_for_generated_dunedaq_config(integtest_param_base_class):
