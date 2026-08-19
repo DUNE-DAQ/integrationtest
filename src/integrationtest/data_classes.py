@@ -144,7 +144,7 @@ class CommandWaitParameters:
     timeout_waiting_for_exit: int = 5  # seconds
 
 @dataclass
-class DAQSessionApp:
+class DAQControlApplication:
     alias: str
     startup_strings: list[str]
     wait_time_after_start: int = 2  # seconds
@@ -157,7 +157,7 @@ class DAQCommandSet:
 
 @dataclass
 class DAQSessionIngredients:
-    applications: list[DAQSessionApp]
+    applications: list[DAQControlApplication]
     commands: list[DAQCommandSet]
 
 @dataclass

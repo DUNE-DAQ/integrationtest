@@ -49,17 +49,17 @@ Information about `daq_session_ingredients`:
 * the [basic_multiapp_test.py](https://github.com/DUNE-DAQ/drunc/blob/kbiery/multi_ctrl_proc_support/src/drunc/integtest/basic_multiapp_test.py) regression test in the `drunc` repo has an example of specifying three applications to be run in the DAQ session and specifying commands that are sent to two of those applications.
     * For reference, the relevant lines from `basic_multiapp_test.py` are copied below.
 * in these instructions, I have tried to use the word "application" to mean a C++ program or a Python script that has been developed to perform one or more functions.  And, I have tried to use the word "process" to mean an instance of an application that is running as part of a DAQ session.  Apologies if this model is not strictly used everywhere.
-* the `DAQSessionIngredients` class has data members that allow developers to specify the applications that should be run and the commands that should be sent to the processes.  In this class, applications are represented by instances of the `DAQSessionApp` class and commands are listed in instances of the `DAQCommandSet` class.  The `DAQCommandSet` has a field that specifies the process that we want to send the commands to.
+* the `DAQSessionIngredients` class has data members that allow developers to specify the applications that should be run and the commands that should be sent to the processes.  In this class, applications are represented by instances of the `DAQControlApplication` class and commands are listed in instances of the `DAQCommandSet` class.  The `DAQCommandSet` has a field that specifies the process that we want to send the commands to.
     * reference information:
 
 ```python
 @dataclass
 class DAQSessionIngredients:
-    applications: list[DAQSessionApp]
+    applications: list[DAQControlApplication]
     commands: list[DAQCommandSet]
 
 @dataclass
-class DAQSessionApp:
+class DAQControlApplication:
     alias: str  # a short-hand name for the process that is started
     startup_strings: list[str]  # the elements of the command string that should be used to start the application
     wait_time_after_start: int = 2  # seconds to sleep after spawning the process
@@ -94,9 +94,9 @@ class CommandWaitStyle(Enum):
         * this wait style is the most robust since we know that all of the commands before the `echo` command have been run when the `echo` results are seen in the process output.  However, some applications don't provide `echo` functionality.
     * the TIME wait style simply waits for configured amounts of time for console output to start and then stop.  The idea here is to use the console output as an indicator of activity, and when the console output stops, presume that activity related to the requested command(s) has stopped.
     * the TIME_PLUS_EXIT wait style is intended to be used with "exit" commands.  The idea here is to wait for console output to stop and then wait for the process to exit (within a configurable timeout).
-* There are several strings that are dynamically determined by the `integrationtest` infrastructure that we may want to include in the `startup_strings` field in our `DAQSessionApp` declarations.  To take this into account, placeholder strings have been defined.  These placeholder strings can be used in `DAQSessionApp` declarations and the `integrationtest` infrastructure will substitute the appropriate value at runtime.  The placeholders that are currently available are the following:
+* There are several strings that are dynamically determined by the `integrationtest` infrastructure that we may want to include in the `startup_strings` field in our `DAQControlApplication` declarations.  To take this into account, placeholder strings have been defined.  These placeholder strings can be used in `DAQControlApplication` declarations and the `integrationtest` infrastructure will substitute the appropriate value at runtime.  The placeholders that are currently available are the following:
     * `<proc_mgr_choice>` - the process manager type that should be used in the DAQ session
-        * recall that the `integrationtest` infrastructure has support for user-specified (dynamic) process manager types.  If we don't want to make use of that functionality, we can hard-code the process manager type in our `DAQSessionApp.startup_strings`.  Of course, that reduces flexibility, but there may be cases where it would make sense.
+        * recall that the `integrationtest` infrastructure has support for user-specified (dynamic) process manager types.  If we don't want to make use of that functionality, we can hard-code the process manager type in our `DAQControlApplication.startup_strings`.  Of course, that reduces flexibility, but there may be cases where it would make sense.
     * `<config_data_file>` - the configuration data file that the infrastructure has created for the integtest
         * this placeholder string should always be used since the `integrationtest` infrastructure creates a new, temporary config data file for each running of an integtest
     * `<config_session_name>` - the name of the configuration session that should be used for the DAQ session
@@ -123,13 +123,13 @@ pm_port = find_free_port(50020, 52000)
 
 # The command lines that should be used to start the applications
 procmsg_startup_commands = ["drunc-process-manager", "<proc_mgr_choice>", str(pm_port)]
-pmapp = DAQSessionApp("pm", procmsg_startup_commands)
+pmapp = DAQControlApplication("pm", procmsg_startup_commands)
 
 pmshell_startup_commands = ["drunc-process-manager-shell", f"grpc://localhost:{pm_port}"]
-pmshellapp = DAQSessionApp("pmshell", pmshell_startup_commands)
+pmshellapp = DAQControlApplication("pmshell", pmshell_startup_commands)
 
 drunc_startup_commands = ["drunc-unified-shell", f"grpc://localhost:{pm_port}", "<config_data_file>", "<config_session_name>", "<daq_session_name>"]
-druncapp = DAQSessionApp("drunc", drunc_startup_commands)
+druncapp = DAQControlApplication("drunc", drunc_startup_commands)
 
 # Packaging up the commands into DAQCommandSets
 cmd_set_1 = DAQCommandSet("drunc", dunerc_commands_1, CommandWaitParameters(style=CommandWaitStyle.ECHO))
