@@ -64,6 +64,7 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
             should_be_printed = verbosity_level >= IntegtestVerbosityLevels.full_output
 
             # check for errors and warnings for all verbosity levels
+            # (only if we have not already determined that the line should be printed out)
             if not should_be_printed:
                 lc_line = decoded_line.lower()
                 if ("error" in lc_line and (not "In error" in decoded_line and not "Endpoint" in decoded_line)) \
@@ -71,6 +72,7 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
                     should_be_printed = True
 
             # check for basic transition messages, if that level of verbosity is requested
+            # (only if we have not already determined that the line should be printed out)
             if not should_be_printed:
                 if verbosity_level >= IntegtestVerbosityLevels.drunc_boot_terminate:
                     if "Booting session" in decoded_line or \
@@ -78,6 +80,7 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
                         should_be_printed = True
 
             # check for all transition messages, if that level of verbosity is requested
+            # (only if we have not already determined that the line should be printed out)
             if not should_be_printed:
                 if verbosity_level >= IntegtestVerbosityLevels.drunc_transitions:
                     if "Booting session" in decoded_line or "Running transition" in decoded_line \
