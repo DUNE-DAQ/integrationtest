@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
+import asyncio
 
 @dataclass
 class DROMap_config:
@@ -126,3 +127,49 @@ class CreateConfigResult:
     data_dirs: list[str]
     tpstream_data_dirs: list[str]
     trmon_data_dirs: list[str]
+
+
+class CommandWaitStyle(Enum):
+    ECHO = "echo"
+    TIME = "time"
+    TIME_PLUS_EXIT = "time_plus_exit"
+    NONE = "none"
+
+@dataclass
+class CommandWaitParameters:
+    wait_for_command_completion: bool = True
+    style: CommandWaitStyle = CommandWaitStyle.TIME
+    timeout_waiting_for_first_msg: int = 2  # seconds
+    wait_time_after_last_msg: int = 2  # seconds
+    timeout_waiting_for_exit: int = 5  # seconds
+
+@dataclass
+class DAQControlApplication:
+    alias: str
+    startup_strings: list[str]
+    wait_time_after_start: int = 2  # seconds
+
+@dataclass
+class DAQCommandSet:
+    target: str
+    command_list: list[str]
+    wait_params: CommandWaitParameters = field(default_factory=lambda: CommandWaitParameters())
+
+@dataclass
+class DAQSessionIngredients:
+    applications: list[DAQControlApplication]
+    commands: list[DAQCommandSet]
+
+@dataclass
+class RunningProcessInfo:
+    process: asyncio.subprocess.Process
+    supported_commands: list[str] = field(default_factory=list)
+
+@dataclass
+class CommandProcessingSharedData:
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
+    cmd_cmplt_evt: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
+    last_msg_time: int = 0
+    number_of_lines_printed_to_the_console: int = 0
+    parsing_of_help_output_in_progress: bool = False
+    results_of_parsing_help_output: list[str] = field(default_factory=list)

@@ -50,13 +50,6 @@ def pytest_addoption(parser):
         required=False
     )
     parser.addoption(
-        "--dunerc-fullprint-watch-string",
-        action="store",
-        default="",
-        help="A phrase that, if found in run control messages, will trigger the printout of all RC messages",
-        required=False
-    )
-    parser.addoption(
         "--remove-hdf5-files",
         action="store",
         default=None,
