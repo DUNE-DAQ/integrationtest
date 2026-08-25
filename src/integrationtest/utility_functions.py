@@ -15,7 +15,7 @@ def basic_checks(run_dunerc, caplog, print_test_name: bool = True):
     if print_test_name and run_dunerc.verbosity_helper.compare_level(IntegtestVerbosityLevels.drunc_transitions):
         # print the name of the current test
         current_test = os.environ.get("PYTEST_CURRENT_TEST")
-        match_obj = re.search(r".*\[(.+)-run_.*rc.*\d].*", current_test)
+        match_obj = re.search(r".*\[(.+)-run_.*rc.*\d\].*", current_test)
         if match_obj:
             current_test = match_obj.group(1)
         banner_line = re.sub(".", "=", current_test)
@@ -24,9 +24,10 @@ def basic_checks(run_dunerc, caplog, print_test_name: bool = True):
         print(banner_line)
 
     # Check that dunerc completed correctly
-    if run_dunerc.completed_process.returncode != 0:
-        fail_msg = f"The run control session returned a non-zero status code ({run_dunerc.completed_process.returncode})."
-        pytest.fail(fail_msg, pytrace=False)
+    for proc_name, cmplt_proc in run_dunerc.completed_processes.items():
+        if cmplt_proc.returncode != 0:
+            fail_msg = f"The {proc_name} process returned a non-zero status code ({cmplt_proc.returncode})."
+            pytest.fail(fail_msg, pytrace=False)
 
     # Check that there weren't any warnings or errors during setup
     setup_logs = caplog.get_records("setup")
