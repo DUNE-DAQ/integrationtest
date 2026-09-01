@@ -10,6 +10,8 @@ import asyncio
 import random
 import json
 import copy
+import signal
+import threading
 from io import StringIO
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
@@ -46,6 +48,66 @@ from daqconf.get_session_apps import get_segment_apps
 # keep track of the number of parameterizations (for various display uses)
 total_parameterization_combinations = 0
 parameterization_counter = 0
+
+
+def find_and_signal_process(application_name, label, wait_time=0, sig=signal.SIGTERM):
+    """
+    Locate a process with a given application name and label, wait for some time,
+    and send a signal to that process if it still exists.
+    """
+    try:
+        # Wait for the specified time
+        if wait_time > 0:
+            time.sleep(wait_time)
+
+        # Run ps aux to get process list
+        result = subprocess.run(
+            ["ps", "aux"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        # Parse the output to find matching process
+        pid = None
+        for line in result.stdout.splitlines():
+            # Split the line into parts
+            parts = line.split()
+
+            # ps aux format: USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
+            # COMMAND is the 11th column (index 10)
+            if len(parts) >= 11:
+                command = parts[10]
+
+                if command.endswith(application_name) or command == application_name:
+                    if f"-n {label}" in line:
+                        # Extract PID (second column, index 1)
+                        try:
+                            pid = int(parts[1])
+                            break
+                        except ValueError:
+                            continue
+
+        if pid is None:
+            print(f">>integrationtest_drunc<< No processes found which match application_name ${application_name} and label ${label}")
+            print("", flush=True)
+            return None, False
+
+        # Check if process still exists and send signal
+        try:
+            print(f">>integrationtest_drunc<< Sending signal {sig} to process with PID {pid} (application_name: {application_name}, label: {label})")
+            print("", flush=True)
+            os.kill(pid, 0)
+            os.kill(pid, sig)
+            return pid, True
+        except OSError:
+            # Process no longer exists
+            return pid, False
+
+    except subprocess.CalledProcessError:
+        return None, False
+    except Exception:
+        return None, False
 
 
 def parametrize_fixture_with_items(metafunc, fixture, itemsname):
@@ -655,6 +717,22 @@ def run_dunerc(request, create_config_files, process_manager_type, trace_debug_s
 
     result = RunResult()
     time_before = time.time()
+
+    # Start threads for each system signal config
+    signal_threads = []
+    for signal_config in create_config_files.integtest_params.system_signal_configs:
+        thread = threading.Thread(
+            target=find_and_signal_process,
+            args=(
+                signal_config.application_name,
+                signal_config.application_label,
+                signal_config.delay_s,
+                signal_config.signal.value
+            ),
+            daemon=True
+        )
+        thread.start()
+        signal_threads.append(thread)
 
     proc_results = asyncio.run(intg_process_manager(dsi, run_dir, verbosity_level))
 
