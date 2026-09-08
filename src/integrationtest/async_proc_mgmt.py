@@ -215,7 +215,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
             stderr=asyncio.subprocess.STDOUT,
             cwd=run_dir
         )
-        processes[proc_name] = RunningProcessInfo(proc)
+        processes[proc_name] = RunningProcessInfo(proc, session_app.supports_help_command)
 
         # 2. Schedule output reading tasks to run concurrently
         tasks[proc_name] = asyncio.create_task(read_stream(proc.stdout, proc_name, session_app.startup_strings[0],
@@ -243,6 +243,11 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
         async with shared_data.lock:
             shared_data.results_of_parsing_help_output = []
             shared_data.parsing_of_help_output_in_progress = True
+        help_cmd_wait_params = CommandWaitParameters(timeout_waiting_for_first_msg=2)
+        if proc_info.supports_help_command == TristateCondition.TRUE:
+            help_cmd_wait_params.timeout_waiting_for_first_msg = 30
+        elif proc_info.supports_help_command == TristateCondition.UNKNOWN:
+            help_cmd_wait_params.timeout_waiting_for_first_msg = 10
         await send_commands(proc_info, proc_name, shared_data, help_cmd,
                             help_cmd_wait_params, verbosity_level)
         async with shared_data.lock:

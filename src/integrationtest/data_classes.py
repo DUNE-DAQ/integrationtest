@@ -143,11 +143,17 @@ class CommandWaitParameters:
     wait_time_after_last_msg: int = 2  # seconds
     timeout_waiting_for_exit: int = 5  # seconds
 
+class TristateCondition(Enum):
+    TRUE = "true"
+    FALSE = "false"
+    UNKNOWN = "unknown"
+
 @dataclass
 class DAQControlApplication:
     alias: str
     startup_strings: list[str]
     wait_time_after_start: int = 2  # seconds
+    supports_help_command: TristateCondition = TristateCondition.UNKNOWN
 
 @dataclass
 class DAQCommandSet:
@@ -163,6 +169,7 @@ class DAQSessionIngredients:
 @dataclass
 class RunningProcessInfo:
     process: asyncio.subprocess.Process
+    supports_help_command: TristateCondition = TristateCondition.UNKNOWN
     supported_commands: list[str] = field(default_factory=list)
 
 @dataclass
