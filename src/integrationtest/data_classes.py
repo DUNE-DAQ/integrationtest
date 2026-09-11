@@ -129,37 +129,36 @@ class CreateConfigResult:
     trmon_data_dirs: list[str]
 
 
-class CommandWaitStyle(Enum):
+class ConsoleOutputWaitStyle(Enum):
     ECHO = "echo"
+    PHRASE = "phrase"
     TIME = "time"
     TIME_PLUS_EXIT = "time_plus_exit"
     NONE = "none"
 
 @dataclass
-class CommandWaitParameters:
+class ConsoleOutputWaitParameters:
     wait_for_command_completion: bool = True
-    style: CommandWaitStyle = CommandWaitStyle.TIME
+    style: ConsoleOutputWaitStyle = ConsoleOutputWaitStyle.TIME
+    # params for TIME wait style(s)
     timeout_waiting_for_first_msg: int = 2  # seconds
     wait_time_after_last_msg: int = 2  # seconds
+    # param for EXIT wait style
     timeout_waiting_for_exit: int = 5  # seconds
-
-class TristateCondition(Enum):
-    TRUE = "true"
-    FALSE = "false"
-    UNKNOWN = "unknown"
 
 @dataclass
 class DAQControlApplication:
     alias: str
     startup_strings: list[str]
-    wait_time_after_start: int = 2  # seconds
-    supports_help_command: TristateCondition = TristateCondition.UNKNOWN
+    startup_done_phrase: str = None
+    startup_wait_time: int = 2  # seconds
+    #wait_time_after_start: int = 2  # seconds
 
 @dataclass
 class DAQCommandSet:
     target: str
     command_list: list[str]
-    wait_params: CommandWaitParameters = field(default_factory=lambda: CommandWaitParameters())
+    wait_params: ConsoleOutputWaitParameters = field(default_factory=lambda: ConsoleOutputWaitParameters())
 
 @dataclass
 class DAQSessionIngredients:
@@ -169,13 +168,14 @@ class DAQSessionIngredients:
 @dataclass
 class RunningProcessInfo:
     process: asyncio.subprocess.Process
-    supports_help_command: TristateCondition = TristateCondition.UNKNOWN
     supported_commands: list[str] = field(default_factory=list)
 
 @dataclass
-class CommandProcessingSharedData:
+class OutputMonitoringSharedData:
     lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
-    cmd_cmplt_evt: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
+    phrase_searching_in_progress: bool = False
+    search_phrase: str = "nullnullnull"
+    phrase_found_evt: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
     last_msg_time: int = 0
     number_of_lines_printed_to_the_console: int = 0
     parsing_of_help_output_in_progress: bool = False

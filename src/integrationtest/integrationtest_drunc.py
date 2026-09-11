@@ -598,7 +598,7 @@ def run_dunerc(request, create_config_files, process_manager_type, trace_debug_s
     if verbosity_level < IntegtestVerbosityLevels.full_output:
         sys.stdout = original_stdout
 
-    exit_cmd = DAQCommandSet("drunc", [ "exit" ], CommandWaitParameters(style=CommandWaitStyle.TIME_PLUS_EXIT))
+    exit_cmd = DAQCommandSet("drunc", [ "exit" ], ConsoleOutputWaitParameters(style=ConsoleOutputWaitStyle.TIME_PLUS_EXIT))
     if user_supplied_apps:
         dsi = copy.deepcopy(run_control_commands)
         for app in dsi.applications:
@@ -645,9 +645,12 @@ def run_dunerc(request, create_config_files, process_manager_type, trace_debug_s
             + [str(create_config_files.integtest_params.config_session_name)] \
             + [str(create_config_files.integtest_params.daq_session_name)]
 
-        dsapp = DAQControlApplication("drunc", popen_command_list)
+        dsapp = DAQControlApplication(alias="drunc", startup_strings=popen_command_list,
+                                      startup_done_phrase="unified_shell ready",
+                                      startup_wait_time=40)
 
-        requested_cmds = DAQCommandSet("drunc", run_control_commands, CommandWaitParameters(style=CommandWaitStyle.ECHO))
+        requested_cmds = DAQCommandSet("drunc", run_control_commands,
+                                       ConsoleOutputWaitParameters(style=ConsoleOutputWaitStyle.ECHO))
 
         app_list = [ dsapp ]
         cmd_set_list = [ requested_cmds, exit_cmd ]

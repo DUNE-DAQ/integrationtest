@@ -68,10 +68,10 @@ class DAQControlApplication:
 class DAQCommandSet:
     target: str  # the name of the process that should receive the commands
     command_list: list[str]  $ the list of commands, e.g. ["boot", "conf"]
-    wait_params: CommandWaitParameters = field(default_factory=lambda: CommandWaitParameters())
+    wait_params: ConsoleOutputWaitParameters = field(default_factory=lambda: ConsoleOutputWaitParameters())
 
 @dataclass
-class CommandWaitParameters:  # please see the comments below for information about this class, etc.
+class ConsoleOutputWaitParameters:  # please see the comments below for information about this class, etc.
     wait_for_command_completion: bool = True
     style: CommandWaitStyle = CommandWaitStyle.TIME
     timeout_waiting_for_first_msg: int = 2  # seconds
@@ -85,9 +85,9 @@ class CommandWaitStyle(Enum):
     NONE = "none"
 ```
 
-* Here is some additional information about `CommandWaitParameters`:
+* Here is some additional information about `ConsoleOutputWaitParameters`:
     * the commands that are specified in a `DAQCommandSet` are sent individually to the target process without any delay between them.  So, we typically send all of the commands in the set in a fraction of a second, while the target process could take tens of seconds to execute all of them.
-    * when there is only one control process in an integtest, this rapid-fire approach may be all that we need, because a single process handles the throttling of the commands, running them one after another.  However, when there are multiple control processes in an integtest, we may want to send a set of commands to Process1, wait for those to finish, and only then send a set of commands to Process2.  This demonstrates a need to allow an `integrationtest` developer to specify whether they want the integrationtest infrastructure to wait for each command set to finish before moving on to the next set of commands, and if so, what style of waiting they would like be used.  This is the motivation for the `CommandWaitParameters` class.
+    * when there is only one control process in an integtest, this rapid-fire approach may be all that we need, because a single process handles the throttling of the commands, running them one after another.  However, when there are multiple control processes in an integtest, we may want to send a set of commands to Process1, wait for those to finish, and only then send a set of commands to Process2.  This demonstrates a need to allow an `integrationtest` developer to specify whether they want the integrationtest infrastructure to wait for each command set to finish before moving on to the next set of commands, and if so, what style of waiting they would like be used.  This is the motivation for the `ConsoleOutputWaitParameters` class.
         * of course, there are also situations in which we want to wait for all of the requested commands to finish running even when there is only one control process in the integtest.  For example, we will likely want to allow a single process to finish executing all of the requested commands before the `integrationtest` infrastructure starts shutting down that process.
     * the currently-supported wait styles are ECHO, TIME, and TIME_PLUS_EXIT.
     * the ECHO wait style makes use of the `echo` command that is available in some of our control applications to clearly identify when a set of commands has finished.  So, if a user specifies a command set that contains commands `['boot', 'conf']` and has a wait style of ECHO, the `integrationtest` infrastructure appends an `echo` command with a special string to the set, i.e. `['boot', 'conf', 'echo "<special string>"']`.  When the `integrationtest` infrastructure sees the special string in the output of the target process, it knows that the command set has finished.
@@ -132,9 +132,9 @@ drunc_startup_commands = ["drunc-unified-shell", f"grpc://localhost:{pm_port}", 
 druncapp = DAQControlApplication("drunc", drunc_startup_commands)
 
 # Packaging up the commands into DAQCommandSets
-cmd_set_1 = DAQCommandSet("drunc", dunerc_commands_1, CommandWaitParameters(style=CommandWaitStyle.ECHO))
-cmd_set_2 = DAQCommandSet("pmshell", pmshell_command, CommandWaitParameters(style=CommandWaitStyle.TIME))
-cmd_set_3 = DAQCommandSet("drunc", dunerc_commands_2, CommandWaitParameters(style=CommandWaitStyle.ECHO))
+cmd_set_1 = DAQCommandSet("drunc", dunerc_commands_1, ConsoleOutputWaitParameters(style=CommandWaitStyle.ECHO))
+cmd_set_2 = DAQCommandSet("pmshell", pmshell_command, ConsoleOutputWaitParameters(style=CommandWaitStyle.TIME))
+cmd_set_3 = DAQCommandSet("drunc", dunerc_commands_2, ConsoleOutputWaitParameters(style=CommandWaitStyle.ECHO))
 
 # Putting everything together into a DAQSessionIngredients object
 app_list = [ pmapp, pmshellapp, druncapp ]
