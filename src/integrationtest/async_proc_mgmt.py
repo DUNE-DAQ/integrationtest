@@ -7,16 +7,13 @@ import time
 from integrationtest.data_classes import *
 from integrationtest.verbosity_helper import *
 from datetime import datetime, timezone
-from typing import Final
 
 import functools
 print = functools.partial(print, flush=True)  # always flush print() output
 
-PROCESS_ECHO_STRING: Final[str] = "*** COMMAND HAS COMPLETED ***"
-
 
 async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_dir,
-                      shared_data: CommandProcessingSharedData, verbosity_level):
+                      shared_data: OutputMonitoringSharedData, verbosity_level):
     """Asynchronously reads lines from a stream and processes them immediately."""
     full_output = ""
     observed_command_prompt = ""
@@ -111,8 +108,8 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
     return full_output
 
 
-async def wait_for_console_output_lull(start_time, wait_params: CommandWaitParameters,
-                                       shared_data: CommandProcessingSharedData):
+async def wait_for_console_output_lull(start_time, wait_params: ConsoleOutputWaitParameters,
+                                       shared_data: OutputMonitoringSharedData):
     now = time.time()
     while True:
         async with shared_data.lock:
@@ -126,7 +123,7 @@ async def wait_for_console_output_lull(start_time, wait_params: CommandWaitParam
         now = time.time()
 
 
-async def send_commands(target_proc_info, proc_name, shared_data: CommandProcessingSharedData,
+async def send_commands(target_proc_info, proc_name, shared_data: OutputMonitoringSharedData,
                         cmd_list, wait_params, verbosity_level):
     target_proc = target_proc_info.process
     if target_proc.returncode is not None:  # Check if process is still running
@@ -148,9 +145,9 @@ async def send_commands(target_proc_info, proc_name, shared_data: CommandProcess
                     print(".", end="")
 
     # wait for the command(s) to finish, if requested
-    if not wait_params.wait_for_command_completion:
+    if wait_params is None:
         return
-    if wait_params.style == CommandWaitStyle.TIME_PLUS_EXIT:
+    if isinstance(wait_params, ProcessExitWaitParameters):
         # The idea behind this command style is that we want to wait until the process has
         # exited and we want to support 'exit' timeout values that are not long and arbitrary.
         # In order to do that, we wait for a lull in the console output before waiting
@@ -160,7 +157,7 @@ async def send_commands(target_proc_info, proc_name, shared_data: CommandProcess
         # waiting for the process to respond to it.  But, we tell users that we skipped it.
         await wait_for_console_output_lull(cmd_start_time, wait_params, shared_data)
         if "exit" in target_proc_info.supported_commands:
-            sleep_interval: float = wait_params.timeout_waiting_for_exit / 10
+            sleep_interval: float = wait_params.wait_time_after_last_msg / 10
             for idx in range(10):
                 if target_proc.returncode is not None:
                     break
@@ -172,7 +169,7 @@ async def send_commands(target_proc_info, proc_name, shared_data: CommandProcess
             if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
                 now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
                 print(f"[integtest_proc_mgmt {now_string}] The {proc_name} process doesn't support the 'exit' command, so waiting for exit was skipped")
-    elif wait_params.style == CommandWaitStyle.ECHO:
+    elif isinstance(wait_params, EchoCommandWaitParameters):
         if "echo" in target_proc_info.supported_commands:
             shared_data.cmd_cmplt_evt.clear()
             target_proc.stdin.write((f"echo '{PROCESS_ECHO_STRING}'\n").encode())
@@ -186,7 +183,7 @@ async def send_commands(target_proc_info, proc_name, shared_data: CommandProcess
             now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
             print(f"[integtest_proc_mgmt {now_string}] The {proc_name} process doesn't support the 'echo' command, using TIME wait instead'")
             await wait_for_console_output_lull(cmd_start_time, wait_params, shared_data)
-    else:  # treat everything else as wait_params.style == CommandWaitStyle.TIME:
+    else:
         await wait_for_console_output_lull(cmd_start_time, wait_params, shared_data)
 
 
@@ -196,7 +193,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
     tasks = {}
     command_completion_event = asyncio.Event()
     proc_results = {}
-    shared_data: CommandProcessingSharedData = CommandProcessingSharedData()
+    shared_data: OutputMonitoringSharedData = OutputMonitoringSharedData()
 
     # 1. Start all subprocesses
     for session_app in daq_session_ingredients.applications:
@@ -237,7 +234,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
 
     # determine the supported commands for each app (using the 'help' command)
     help_cmd = ["help"]
-    help_cmd_wait_params = CommandWaitParameters(timeout_waiting_for_first_msg=2)
+    help_cmd_wait_params = ConsoleOutputWaitParameters(timeout_waiting_for_first_msg=2)
     await wait_for_console_output_lull(time.time(), help_cmd_wait_params, shared_data)
     for proc_name, proc_info in processes.items():
         async with shared_data.lock:
@@ -302,8 +299,11 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
                 #  so, we create a new list from the iterator.)
                 reformatted_cmd_list = list(reversed(working_cmd_list))
 
+                wait_params: ConsoleOutputWaitParameters = None
+                if cmd_set.wait_for_command_completion:
+                    wait_params = cmd_set.wait_params
                 await send_commands(proc_info, target, shared_data, reformatted_cmd_list,
-                                    cmd_set.wait_params, verbosity_level)
+                                    wait_params, verbosity_level)
 
             else:
                 now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")

@@ -1,6 +1,9 @@
 from dataclasses import dataclass, field
 from enum import Enum
 import asyncio
+from typing import Final
+
+PROCESS_ECHO_STRING: Final[str] = "*** COMMAND HAS COMPLETED ***"
 
 @dataclass
 class DROMap_config:
@@ -129,19 +132,22 @@ class CreateConfigResult:
     trmon_data_dirs: list[str]
 
 
-class CommandWaitStyle(Enum):
-    ECHO = "echo"
-    TIME = "time"
-    TIME_PLUS_EXIT = "time_plus_exit"
-    NONE = "none"
-
 @dataclass
-class CommandWaitParameters:
-    wait_for_command_completion: bool = True
-    style: CommandWaitStyle = CommandWaitStyle.TIME
+class ConsoleOutputWaitParameters:
     timeout_waiting_for_first_msg: int = 2  # seconds
     wait_time_after_last_msg: int = 2  # seconds
-    timeout_waiting_for_exit: int = 5  # seconds
+
+@dataclass
+class SearchPhraseWaitParameters(ConsoleOutputWaitParameters):
+    search_phrase: str = None
+
+@dataclass
+class EchoCommandWaitParameters(ConsoleOutputWaitParameters):
+    search_phrase: str = PROCESS_ECHO_STRING
+
+@dataclass
+class ProcessExitWaitParameters(ConsoleOutputWaitParameters):
+    process: asyncio.subprocess.Process = None
 
 @dataclass
 class DAQControlApplication:
@@ -153,7 +159,8 @@ class DAQControlApplication:
 class DAQCommandSet:
     target: str
     command_list: list[str]
-    wait_params: CommandWaitParameters = field(default_factory=lambda: CommandWaitParameters())
+    wait_params: ConsoleOutputWaitParameters
+    wait_for_command_completion: bool = True
 
 @dataclass
 class DAQSessionIngredients:
@@ -166,7 +173,7 @@ class RunningProcessInfo:
     supported_commands: list[str] = field(default_factory=list)
 
 @dataclass
-class CommandProcessingSharedData:
+class OutputMonitoringSharedData:
     lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
     cmd_cmplt_evt: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
     last_msg_time: int = 0
