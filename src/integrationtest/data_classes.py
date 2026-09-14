@@ -1,9 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
 import asyncio
-from typing import Final
-
-PROCESS_ECHO_STRING: Final[str] = "*** COMMAND HAS COMPLETED ***"
 
 @dataclass
 class DROMap_config:
@@ -133,33 +130,43 @@ class CreateConfigResult:
 
 
 @dataclass
-class ConsoleOutputWaitParameters:
+class ConditionalWaitParameters:
+    pass
+
+@dataclass
+class ConsoleOutputWaitParameters(ConditionalWaitParameters):
     timeout_waiting_for_first_msg: int = 2  # seconds
     wait_time_after_last_msg: int = 2  # seconds
 
 @dataclass
-class SearchPhraseWaitParameters(ConsoleOutputWaitParameters):
+class KeyPhraseWaitParameters(ConsoleOutputWaitParameters):
+    timeout_waiting_for_first_msg: int = 30  # seconds
+    wait_time_after_last_msg: int = 30  # seconds
     search_phrase: str = None
 
 @dataclass
 class EchoCommandWaitParameters(ConsoleOutputWaitParameters):
-    search_phrase: str = PROCESS_ECHO_STRING
+    timeout_waiting_for_first_msg: int = 20  # seconds
+    wait_time_after_last_msg: int = 20  # seconds
+    search_phrase: str = "*** COMMAND HAS COMPLETED ***"
 
 @dataclass
 class ProcessExitWaitParameters(ConsoleOutputWaitParameters):
+    timeout_waiting_for_first_msg: int = 10  # seconds
+    wait_time_after_last_msg: int = 10  # seconds
     process: asyncio.subprocess.Process = None
 
 @dataclass
 class DAQControlApplication:
     alias: str
     startup_strings: list[str]
-    wait_time_after_start: int = 2  # seconds
+    startup_wait_params: ConditionalWaitParameters
 
 @dataclass
 class DAQCommandSet:
     target: str
     command_list: list[str]
-    wait_params: ConsoleOutputWaitParameters
+    wait_params: ConditionalWaitParameters
     wait_for_command_completion: bool = True
 
 @dataclass
@@ -175,8 +182,10 @@ class RunningProcessInfo:
 @dataclass
 class OutputMonitoringSharedData:
     lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
-    cmd_cmplt_evt: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
     last_msg_time: int = 0
     number_of_lines_printed_to_the_console: int = 0
+    search_phrase: str = "nullnullnull"
+    phrase_searching_in_progress: bool = False
+    phrase_has_been_found: bool = False
     parsing_of_help_output_in_progress: bool = False
     results_of_parsing_help_output: list[str] = field(default_factory=list)

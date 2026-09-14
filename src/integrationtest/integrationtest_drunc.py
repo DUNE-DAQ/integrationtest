@@ -645,7 +645,8 @@ def run_dunerc(request, create_config_files, process_manager_type, trace_debug_s
             + [str(create_config_files.integtest_params.config_session_name)] \
             + [str(create_config_files.integtest_params.daq_session_name)]
 
-        dsapp = DAQControlApplication("drunc", popen_command_list)
+        dsapp = DAQControlApplication("drunc", popen_command_list,
+                                      KeyPhraseWaitParameters(search_phrase="unified_shell ready"))
 
         requested_cmds = DAQCommandSet("drunc", run_control_commands, EchoCommandWaitParameters())
 

@@ -28,11 +28,12 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
             async with shared_data.lock:
                 shared_data.last_msg_time = time.time()
 
-            # if the special end-of-command string has been echo-ed by the process,
-            # send the relevant signal to any waiting task by setting the completion event
-            if PROCESS_ECHO_STRING in decoded_line:
-                shared_data.cmd_cmplt_evt.set()
-                continue
+            # if we find a requested phrase in the output, set the relevant flag
+            async with shared_data.lock:
+                if shared_data.phrase_searching_in_progress:
+                    clean_line = re.sub(r"\x1b\[[0-9;]*m", "", decoded_line)
+                    if shared_data.search_phrase in clean_line:
+                        shared_data.phrase_has_been_found = True
 
             # process the output of the "help" command, if requested
             async with shared_data.lock:
@@ -108,8 +109,17 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
     return full_output
 
 
-async def wait_for_console_output_lull(start_time, wait_params: ConsoleOutputWaitParameters,
+async def wait_for_requested_condition(start_time, wait_params: ConditionalWaitParameters,
                                        shared_data: OutputMonitoringSharedData):
+
+    if (isinstance(wait_params, EchoCommandWaitParameters) or \
+        isinstance(wait_params, KeyPhraseWaitParameters)) and \
+        wait_params.search_phrase is not None:
+        async with shared_data.lock:
+            shared_data.phrase_has_been_found = False
+            shared_data.search_phrase = wait_params.search_phrase
+            shared_data.phrase_searching_in_progress = True
+
     now = time.time()
     while True:
         async with shared_data.lock:
@@ -119,8 +129,20 @@ async def wait_for_console_output_lull(start_time, wait_params: ConsoleOutputWai
             else:
                 if now - shared_data.last_msg_time >= wait_params.wait_time_after_last_msg:
                     break
+            if shared_data.phrase_has_been_found:
+                break
+        if isinstance(wait_params, ProcessExitWaitParameters):
+            if wait_params.process.returncode is not None:
+                break
         await asyncio.sleep(0.25)
         now = time.time()
+
+    if (isinstance(wait_params, EchoCommandWaitParameters) or \
+        isinstance(wait_params, KeyPhraseWaitParameters)) and \
+        wait_params.search_phrase is not None:
+        async with shared_data.lock:
+            shared_data.phrase_searching_in_progress = False
+            shared_data.phrase_has_been_found = False
 
 
 async def send_commands(target_proc_info, proc_name, shared_data: OutputMonitoringSharedData,
@@ -155,13 +177,9 @@ async def send_commands(target_proc_info, proc_name, shared_data: OutputMonitori
         # finishing of the console output.
         # Of course, if the app doesn't support the "exit" command, there is no sense in
         # waiting for the process to respond to it.  But, we tell users that we skipped it.
-        await wait_for_console_output_lull(cmd_start_time, wait_params, shared_data)
         if "exit" in target_proc_info.supported_commands:
-            sleep_interval: float = wait_params.wait_time_after_last_msg / 10
-            for idx in range(10):
-                if target_proc.returncode is not None:
-                    break
-                await asyncio.sleep(sleep_interval)
+            wait_params.process = target_proc
+            await wait_for_requested_condition(cmd_start_time, wait_params, shared_data)
             if target_proc.returncode is None:
                 now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
                 print(f"[integtest_proc_mgmt {now_string}] WARNING: timeout waiting for {proc_name} to exit in response to {cmd_list}")
@@ -171,27 +189,28 @@ async def send_commands(target_proc_info, proc_name, shared_data: OutputMonitori
                 print(f"[integtest_proc_mgmt {now_string}] The {proc_name} process doesn't support the 'exit' command, so waiting for exit was skipped")
     elif isinstance(wait_params, EchoCommandWaitParameters):
         if "echo" in target_proc_info.supported_commands:
-            shared_data.cmd_cmplt_evt.clear()
-            target_proc.stdin.write((f"echo '{PROCESS_ECHO_STRING}'\n").encode())
+            target_proc.stdin.write((f"echo '{wait_params.search_phrase}'\n").encode())
             await target_proc.stdin.drain()
             if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
                 now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
-                print(f"[integtest_proc_mgmt {now_string}] Sent command to {proc_name}: echo '{PROCESS_ECHO_STRING}'")
-            await shared_data.cmd_cmplt_evt.wait()
-            shared_data.cmd_cmplt_evt.clear()
+                print(f"[integtest_proc_mgmt {now_string}] Sent command to {proc_name}: echo '{wait_params.search_phrase}'")
+            await wait_for_requested_condition(cmd_start_time, wait_params, shared_data)
         else:
             now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
             print(f"[integtest_proc_mgmt {now_string}] The {proc_name} process doesn't support the 'echo' command, using TIME wait instead'")
-            await wait_for_console_output_lull(cmd_start_time, wait_params, shared_data)
+            wait_params.search_phrase = None
+            await wait_for_requested_condition(cmd_start_time, wait_params, shared_data)
     else:
-        await wait_for_console_output_lull(cmd_start_time, wait_params, shared_data)
+        await wait_for_requested_condition(cmd_start_time, wait_params, shared_data)
+
+# add handling of KeyPhrase
+# add background task?
 
 
 async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, run_dir,
                                verbosity_level):
     processes = {}
     tasks = {}
-    command_completion_event = asyncio.Event()
     proc_results = {}
     shared_data: OutputMonitoringSharedData = OutputMonitoringSharedData()
 
@@ -220,7 +239,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
                                                            run_dir, shared_data, verbosity_level
                                                            ))
 
-        time.sleep(session_app.wait_time_after_start)
+        await wait_for_requested_condition(time.time(), session_app.startup_wait_params, shared_data)
 
     if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
         now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
@@ -235,7 +254,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
     # determine the supported commands for each app (using the 'help' command)
     help_cmd = ["help"]
     help_cmd_wait_params = ConsoleOutputWaitParameters(timeout_waiting_for_first_msg=2)
-    await wait_for_console_output_lull(time.time(), help_cmd_wait_params, shared_data)
+    #await wait_for_requested_condition(time.time(), help_cmd_wait_params, shared_data)
     for proc_name, proc_info in processes.items():
         async with shared_data.lock:
             shared_data.results_of_parsing_help_output = []
@@ -299,7 +318,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
                 #  so, we create a new list from the iterator.)
                 reformatted_cmd_list = list(reversed(working_cmd_list))
 
-                wait_params: ConsoleOutputWaitParameters = None
+                wait_params: ConditionalWaitParameters = None
                 if cmd_set.wait_for_command_completion:
                     wait_params = cmd_set.wait_params
                 await send_commands(proc_info, target, shared_data, reformatted_cmd_list,
