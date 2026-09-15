@@ -33,7 +33,7 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
                 if shared_data.phrase_searching_in_progress:
                     clean_line = re.sub(r"\x1b\[[0-9;]*m", "", decoded_line)
                     if shared_data.search_phrase in clean_line:
-                        shared_data.phrase_has_been_found = True
+                        shared_data.search_phrase_has_been_found = True
 
             # process the output of the "help" command, if requested
             async with shared_data.lock:
@@ -116,7 +116,7 @@ async def wait_for_requested_condition(start_time, wait_params: ConditionalWaitP
         isinstance(wait_params, KeyPhraseWaitParameters)) and \
         wait_params.search_phrase is not None:
         async with shared_data.lock:
-            shared_data.phrase_has_been_found = False
+            shared_data.search_phrase_has_been_found = False
             shared_data.search_phrase = wait_params.search_phrase
             shared_data.phrase_searching_in_progress = True
 
@@ -129,7 +129,7 @@ async def wait_for_requested_condition(start_time, wait_params: ConditionalWaitP
             else:
                 if now - shared_data.last_msg_time >= wait_params.wait_time_after_last_msg:
                     break
-            if shared_data.phrase_has_been_found:
+            if shared_data.search_phrase_has_been_found:
                 break
         if isinstance(wait_params, ProcessExitWaitParameters):
             if wait_params.process.returncode is not None:
@@ -142,7 +142,7 @@ async def wait_for_requested_condition(start_time, wait_params: ConditionalWaitP
         wait_params.search_phrase is not None:
         async with shared_data.lock:
             shared_data.phrase_searching_in_progress = False
-            shared_data.phrase_has_been_found = False
+            shared_data.search_phrase_has_been_found = False
 
 
 async def send_commands(target_proc_info, proc_name, shared_data: OutputMonitoringSharedData,
@@ -201,10 +201,10 @@ async def send_commands(target_proc_info, proc_name, shared_data: OutputMonitori
             wait_params.search_phrase = None
             await wait_for_requested_condition(cmd_start_time, wait_params, shared_data)
     else:
+        # KeyPhrase gets handled automatically here, along with ConsoleOutput
         await wait_for_requested_condition(cmd_start_time, wait_params, shared_data)
 
-# add handling of KeyPhrase
-# add background task?
+# add background task to avoid race condition?
 
 
 async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, run_dir,

@@ -166,7 +166,7 @@ class DAQControlApplication:
 class DAQCommandSet:
     target: str
     command_list: list[str]
-    wait_params: ConditionalWaitParameters
+    wait_params: ConditionalWaitParameters = None
     wait_for_command_completion: bool = True
 
 @dataclass
@@ -186,6 +186,6 @@ class OutputMonitoringSharedData:
     number_of_lines_printed_to_the_console: int = 0
     search_phrase: str = "nullnullnull"
     phrase_searching_in_progress: bool = False
-    phrase_has_been_found: bool = False
+    search_phrase_has_been_found: bool = False
     parsing_of_help_output_in_progress: bool = False
     results_of_parsing_help_output: list[str] = field(default_factory=list)
