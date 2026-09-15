@@ -30,7 +30,8 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
 
             # if we find a requested phrase in the output, set the relevant flag
             async with shared_data.lock:
-                if shared_data.phrase_searching_in_progress:
+                if shared_data.phrase_searching_in_progress and \
+                   shared_data.search_phrase is not None:
                     clean_line = re.sub(r"\x1b\[[0-9;]*m", "", decoded_line)
                     if shared_data.search_phrase in clean_line:
                         shared_data.search_phrase_has_been_found = True
@@ -109,7 +110,13 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
     return full_output
 
 
-async def wait_for_requested_condition(start_time, wait_params: ConditionalWaitParameters,
+# The purpose of this function is to wait until one of the requested conditions has been
+# satified. The conditions are specified in "wait parameter" objects. The baseline wait
+# parameter class provides time values that are used to watch for quiet times in the console
+# output from the control process(es). Wait parameter classes that build on the
+# ConsoleOutputWaitParameters class add conditions that allow the waiting to end earlier
+# than the wait times specified in the base class.
+async def wait_for_requested_condition(start_time, wait_params: ConsoleOutputWaitParameters,
                                        shared_data: OutputMonitoringSharedData):
 
     if (isinstance(wait_params, EchoCommandWaitParameters) or \
@@ -131,7 +138,8 @@ async def wait_for_requested_condition(start_time, wait_params: ConditionalWaitP
                     break
             if shared_data.search_phrase_has_been_found:
                 break
-        if isinstance(wait_params, ProcessExitWaitParameters):
+        if isinstance(wait_params, ProcessExitWaitParameters) and \
+           wait_params.process is not None:
             if wait_params.process.returncode is not None:
                 break
         await asyncio.sleep(0.25)
@@ -197,8 +205,8 @@ async def send_commands(target_proc_info, proc_name, shared_data: OutputMonitori
             await wait_for_requested_condition(cmd_start_time, wait_params, shared_data)
         else:
             now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
-            print(f"[integtest_proc_mgmt {now_string}] The {proc_name} process doesn't support the 'echo' command, using TIME wait instead'")
-            wait_params.search_phrase = None
+            print(f"[integtest_proc_mgmt {now_string}] WARNING: The {proc_name} process doesn't support the 'echo' command, using TIME wait instead'")
+            wait_params = KeyPhraseWaitParameters()
             await wait_for_requested_condition(cmd_start_time, wait_params, shared_data)
     else:
         # KeyPhrase gets handled automatically here, along with ConsoleOutput
@@ -239,7 +247,12 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
                                                            run_dir, shared_data, verbosity_level
                                                            ))
 
-        await wait_for_requested_condition(time.time(), session_app.startup_wait_params, shared_data)
+        # Wait for the process to start up. If the user has not specified wait parameters,
+        # default-construct ones that make use of the console output.
+        wait_params = session_app.startup_wait_params
+        if wait_params is None:
+            wait_params = ConsoleOutputWaitParams()
+        await wait_for_requested_condition(time.time(), wait_params, shared_data)
 
     if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
         now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
@@ -318,7 +331,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
                 #  so, we create a new list from the iterator.)
                 reformatted_cmd_list = list(reversed(working_cmd_list))
 
-                wait_params: ConditionalWaitParameters = None
+                wait_params: ConsoleOutputWaitParameters = None
                 if cmd_set.wait_for_command_completion:
                     wait_params = cmd_set.wait_params
                 await send_commands(proc_info, target, shared_data, reformatted_cmd_list,

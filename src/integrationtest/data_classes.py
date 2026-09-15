@@ -130,43 +130,39 @@ class CreateConfigResult:
 
 
 @dataclass
-class ConditionalWaitParameters:
-    pass
-
-@dataclass
-class ConsoleOutputWaitParameters(ConditionalWaitParameters):
+class ConsoleOutputWaitParameters:
     timeout_waiting_for_first_msg: int = 2  # seconds
     wait_time_after_last_msg: int = 2  # seconds
 
 @dataclass
 class KeyPhraseWaitParameters(ConsoleOutputWaitParameters):
-    timeout_waiting_for_first_msg: int = 30  # seconds
-    wait_time_after_last_msg: int = 30  # seconds
+    timeout_waiting_for_first_msg: int = 60  # seconds
+    wait_time_after_last_msg: int = 60  # seconds
     search_phrase: str = None
 
 @dataclass
 class EchoCommandWaitParameters(ConsoleOutputWaitParameters):
-    timeout_waiting_for_first_msg: int = 20  # seconds
-    wait_time_after_last_msg: int = 20  # seconds
+    timeout_waiting_for_first_msg: int = 999999  # seconds
+    wait_time_after_last_msg: int = 999999  # seconds
     search_phrase: str = "*** COMMAND HAS COMPLETED ***"
 
 @dataclass
 class ProcessExitWaitParameters(ConsoleOutputWaitParameters):
-    timeout_waiting_for_first_msg: int = 10  # seconds
-    wait_time_after_last_msg: int = 10  # seconds
+    timeout_waiting_for_first_msg: int = 30  # seconds
+    wait_time_after_last_msg: int = 30  # seconds
     process: asyncio.subprocess.Process = None
 
 @dataclass
 class DAQControlApplication:
     alias: str
     startup_strings: list[str]
-    startup_wait_params: ConditionalWaitParameters
+    startup_wait_params: ConsoleOutputWaitParameters = None
 
 @dataclass
 class DAQCommandSet:
     target: str
     command_list: list[str]
-    wait_params: ConditionalWaitParameters = None
+    wait_params: ConsoleOutputWaitParameters = None
     wait_for_command_completion: bool = True
 
 @dataclass
