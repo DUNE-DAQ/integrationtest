@@ -155,14 +155,22 @@ async def wait_for_requested_condition(start_time, wait_params: ConsoleOutputWai
 
 async def send_commands(target_proc_info, proc_name, shared_data: OutputMonitoringSharedData,
                         cmd_list, wait_params, verbosity_level):
+    # Check if the process is still running; return if not
     target_proc = target_proc_info.process
-    if target_proc.returncode is not None:  # Check if process is still running
+    if target_proc.returncode is not None:
         now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
         print(f"[integtest_proc_mgmt {now_string}] Error: {proc_name} has already exited, unable to send \"{cmd_list}\".")
         return
+    cmd_start_time = time.time()
+
+    # for KeyPhrase wait conditions, start watching the console output *before* we send
+    # the requested commands (to avoid a race condition)
+    key_phrase_bg_task = None
+    if wait_params is not None and isinstance(wait_params, KeyPhraseWaitParameters) and \
+       wait_params.search_phrase is not None:
+        key_phrase_bg_task = asyncio.create_task(wait_for_requested_condition(cmd_start_time, wait_params, shared_data))
 
     # send the requested commands
-    cmd_start_time = time.time()
     for cmd in cmd_list:
         target_proc.stdin.write((cmd + "\n").encode())
         await target_proc.stdin.drain()
@@ -170,6 +178,8 @@ async def send_commands(target_proc_info, proc_name, shared_data: OutputMonitori
             now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
             print(f"[integtest_proc_mgmt {now_string}] Sent command to {proc_name}: {cmd}")
         else:
+            # in order to indicate to the user that the program is not stalled,
+            # we print out dots if nothing else has been printed
             async with shared_data.lock:
                 if shared_data.number_of_lines_printed_to_the_console == 0:
                     print(".", end="")
@@ -178,11 +188,8 @@ async def send_commands(target_proc_info, proc_name, shared_data: OutputMonitori
     if wait_params is None:
         return
     if isinstance(wait_params, ProcessExitWaitParameters):
-        # The idea behind this command style is that we want to wait until the process has
-        # exited and we want to support 'exit' timeout values that are not long and arbitrary.
-        # In order to do that, we wait for a lull in the console output before waiting
-        # for the process exit.  So, the exit timeout can hopefully be relative to the
-        # finishing of the console output.
+        # The idea behind this wait style is that we want to wait until the process has
+        # exited, and if it fails to exit, we want to time out after a reasonable time.
         # Of course, if the app doesn't support the "exit" command, there is no sense in
         # waiting for the process to respond to it.  But, we tell users that we skipped it.
         if "exit" in target_proc_info.supported_commands:
@@ -194,20 +201,31 @@ async def send_commands(target_proc_info, proc_name, shared_data: OutputMonitori
         else:
             if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
                 now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
-                print(f"[integtest_proc_mgmt {now_string}] The {proc_name} process doesn't support the 'exit' command, so waiting for exit was skipped")
+                print(f"[integtest_proc_mgmt {now_string}] The {proc_name} process doesn't support the 'exit' command, so we won't wait for a response")
     elif isinstance(wait_params, EchoCommandWaitParameters):
         if "echo" in target_proc_info.supported_commands:
+            # start a background task to watch for the echo command output
+            bg_task = asyncio.create_task(wait_for_requested_condition(cmd_start_time, wait_params, shared_data))
+            # send the echo command to the process
             target_proc.stdin.write((f"echo '{wait_params.search_phrase}'\n").encode())
             await target_proc.stdin.drain()
             if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:
                 now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
                 print(f"[integtest_proc_mgmt {now_string}] Sent command to {proc_name}: echo '{wait_params.search_phrase}'")
-            await wait_for_requested_condition(cmd_start_time, wait_params, shared_data)
+            # wait until the echo command output shows up in the console output
+            await bg_task
         else:
             now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
-            print(f"[integtest_proc_mgmt {now_string}] WARNING: The {proc_name} process doesn't support the 'echo' command, using TIME wait instead'")
+            print(f"[integtest_proc_mgmt {now_string}] WARNING: The {proc_name} process doesn't support the 'echo' command, using time-based wait instead'")
+            # we use a KeyPhrase wait parameter set here (without setting a search phrase)
+            # because its default timeout values are longer than a couple of seconds but not too
+            # long. In any case, this choice is a poor substitute for a test string to be echo-ed
+            # by the application, and there is a non-trivial chance that the timeout values are
+            # not well-matched to the console output that is produced by the process.
             wait_params = KeyPhraseWaitParameters()
             await wait_for_requested_condition(cmd_start_time, wait_params, shared_data)
+    elif isinstance(wait_params, KeyPhraseWaitParameters) and key_phrase_bg_task is not None:
+        await key_phrase_bg_task
     else:
         # KeyPhrase gets handled automatically here, along with ConsoleOutput
         await wait_for_requested_condition(cmd_start_time, wait_params, shared_data)
