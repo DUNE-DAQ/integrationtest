@@ -251,7 +251,7 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
         # default-construct ones that make use of the console output.
         wait_params = session_app.startup_wait_params
         if wait_params is None:
-            wait_params = ConsoleOutputWaitParams()
+            wait_params = ConsoleOutputWaitParameters()
         await wait_for_requested_condition(time.time(), wait_params, shared_data)
 
     if verbosity_level >= IntegtestVerbosityLevels.integtest_debug:

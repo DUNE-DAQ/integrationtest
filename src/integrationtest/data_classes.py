@@ -136,8 +136,8 @@ class ConsoleOutputWaitParameters:
 
 @dataclass
 class KeyPhraseWaitParameters(ConsoleOutputWaitParameters):
-    timeout_waiting_for_first_msg: int = 60  # seconds
-    wait_time_after_last_msg: int = 60  # seconds
+    timeout_waiting_for_first_msg: int = 30  # seconds
+    wait_time_after_last_msg: int = 30  # seconds
     search_phrase: str = None
 
 @dataclass
