@@ -116,8 +116,11 @@ async def read_stream(stream, process_name, app_exe_name, print_proc_name, run_d
 # output from the control process(es). Wait parameter classes that build on the
 # ConsoleOutputWaitParameters class add conditions that allow the waiting to end earlier
 # than the wait times specified in the base class.
+# Return codes are 0 for console output timeout, 1 for finding a search phrase in the console
+# output, and 2 for when the process has exited.
 async def wait_for_requested_condition(start_time, wait_params: ConsoleOutputWaitParameters,
                                        shared_data: OutputMonitoringSharedData):
+    retcode = 0
 
     if (isinstance(wait_params, EchoCommandWaitParameters) or \
         isinstance(wait_params, KeyPhraseWaitParameters)) and \
@@ -137,10 +140,12 @@ async def wait_for_requested_condition(start_time, wait_params: ConsoleOutputWai
                 if now - shared_data.last_msg_time >= wait_params.wait_time_after_last_msg:
                     break
             if shared_data.search_phrase_has_been_found:
+                retcode = 1
                 break
         if isinstance(wait_params, ProcessExitWaitParameters) and \
            wait_params.process is not None:
             if wait_params.process.returncode is not None:
+                retcode = 2
                 break
         await asyncio.sleep(0.25)
         now = time.time()
@@ -151,6 +156,8 @@ async def wait_for_requested_condition(start_time, wait_params: ConsoleOutputWai
         async with shared_data.lock:
             shared_data.phrase_searching_in_progress = False
             shared_data.search_phrase_has_been_found = False
+
+    return retcode
 
 
 async def send_commands(target_proc_info, proc_name, shared_data: OutputMonitoringSharedData,
@@ -213,7 +220,10 @@ async def send_commands(target_proc_info, proc_name, shared_data: OutputMonitori
                 now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
                 print(f"[integtest_proc_mgmt {now_string}] Sent command to {proc_name}: echo '{wait_params.search_phrase}'")
             # wait until the echo command output shows up in the console output
-            await bg_task
+            retcode = await bg_task
+            if retcode != 1:
+                now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
+                print(f"[integtest_proc_mgmt {now_string}] WARNING: timeout waiting for {proc_name} to echo '{wait_params.search_phrase}' after executing {cmd_list}")
         else:
             now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
             print(f"[integtest_proc_mgmt {now_string}] WARNING: The {proc_name} process doesn't support the 'echo' command, using time-based wait instead'")
@@ -225,9 +235,11 @@ async def send_commands(target_proc_info, proc_name, shared_data: OutputMonitori
             wait_params = KeyPhraseWaitParameters()
             await wait_for_requested_condition(cmd_start_time, wait_params, shared_data)
     elif isinstance(wait_params, KeyPhraseWaitParameters) and key_phrase_bg_task is not None:
-        await key_phrase_bg_task
+        retcode = await key_phrase_bg_task
+        if retcode != 1:
+            now_string = datetime.now(timezone.utc).strftime("%H:%M:%SZ")
+            print(f"[integtest_proc_mgmt {now_string}] WARNING: timeout waiting for {proc_name} to print out '{wait_params.search_phrase}' as part of executing {cmd_list}")
     else:
-        # KeyPhrase gets handled automatically here, along with ConsoleOutput
         await wait_for_requested_condition(cmd_start_time, wait_params, shared_data)
 
 # add background task to avoid race condition?
