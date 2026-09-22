@@ -297,7 +297,6 @@ async def intg_process_manager(daq_session_ingredients: DAQSessionIngredients, r
     # determine the supported commands for each app (using the 'help' command)
     help_cmd = ["help"]
     help_cmd_wait_params = ConsoleOutputWaitParameters(timeout_waiting_for_first_msg=2)
-    #await wait_for_requested_condition(time.time(), help_cmd_wait_params, shared_data)
     for proc_name, proc_info in processes.items():
         async with shared_data.lock:
             shared_data.results_of_parsing_help_output = []
