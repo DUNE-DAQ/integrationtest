@@ -847,11 +847,8 @@ def trace_debug_settings(request, create_config_files):
         for trace_type in create_config_files.integtest_params.trace_debug_levels.keys(): # fast or slow
             requested_levels = create_config_files.integtest_params.trace_debug_levels[trace_type]
             if type(requested_levels) == dict:
-                for key, value in requested_levels.items():
-                    mask_result = subprocess.run(["bitN_to_mask", f"DEBUG+{value}"], capture_output=True,
-                                                 text=True, check=True)
-                    enable_mask = mask_result.stdout
-
+                lc_trace_type = trace_type.lower()
+                for key, dict_value in requested_levels.items():
                     fast_mask = "0x1ff"
                     slow_mask = "0xff"
                     for text_line in tlvls_output.splitlines():
@@ -861,15 +858,27 @@ def trace_debug_settings(request, create_config_files):
                             slow_mask = tokens[3]
                             break
 
-                    lc_trace_type = trace_type.lower()
+                    if isinstance(dict_value, list):
+                        values = dict_value
+                    else:
+                        values = [dict_value]
+                    for value in values:
+                        mask_result = subprocess.run(["bitN_to_mask", f"DEBUG+{value}"], capture_output=True,
+                                                     text=True, check=True)
+                        enable_mask = mask_result.stdout
+                        if "fast" in lc_trace_type:
+                            subprocess.run(["trace_cntl", "-n", key, "lvlset", str(enable_mask), "0", "0"], check=True)
+                        if "slow" in lc_trace_type:
+                            subprocess.run(["trace_cntl", "-n", key, "lvlset", "0", str(enable_mask), "0"], check=True)
+
                     if "fast" in lc_trace_type:
-                        subprocess.run(["trace_cntl", "-n", key, "lvlset", str(enable_mask), "0", "0"], check=True)
                         subprocess.run(["trace_cntl", "modeM", "1"], check=True)
                         restore_trace_settings.append(["trace_cntl", "-n", key, "lvlmskM", fast_mask])
                     if "slow" in lc_trace_type:
-                        subprocess.run(["trace_cntl", "-n", key, "lvlset", "0", str(enable_mask), "0"], check=True)
                         subprocess.run(["trace_cntl", "modeS", "1"], check=True)
                         restore_trace_settings.append(["trace_cntl", "-n", key, "lvlmskS", slow_mask])
+            else:
+                pass  # need warning message
 
     # pause here to let the DAQ system and pytest tests run
     yield
