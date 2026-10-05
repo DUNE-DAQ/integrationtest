@@ -785,12 +785,13 @@ def trace_debug_settings(request, create_config_files):
     #      set up trace locally before running integtests, those are the settings
     #      that get used.
     #
-    # 2) If the user has specified one or more TRACE debug levels that should be
-    #    enabled, we do that.
-    #    * The format of a TRACE level request is:
+    # 2) If the integtest developer has specified one or more TRACE debug levels
+    #    in the integtest file that should be enabled, we do that.
+    #    * The format of a TRACE level request in an integtest file is:
     #      (conf_dict.)trace_debug_levels = {"<path type, fast or slow>":
-    #            {"<trace name>": <trace level}}
-    #      For example: {"fast": {"ModuleX": 5}, "slow": {"ModuleY": 7}}
+    #            {"<trace name>": <trace_level (int) or trace_levels (list of int)>}}
+    #      For example: {"fast": {"ModuleX": 5}, "slow": {"ModuleY": [7,10]},
+    #                    "fast_and_slow": {ModuleZ: [21,22,23,24]}}
     #    * We use the TRACE_FILE that is defined in the OKS configuration to set
     #      the requested levels. If none is defined, then we make up a temporary
     #      one in the users pytest directory, *and* we write the information about
@@ -820,65 +821,101 @@ def trace_debug_settings(request, create_config_files):
     # We build up a list of commands that will be used to restore the TRACE levels
     # to their original values once the test is done.
     restore_trace_settings = []
-    if len(create_config_files.integtest_params.trace_debug_levels) > 0:
+    if create_config_files.integtest_params.trace_debug_levels is not None:
+        if isinstance(create_config_files.integtest_params.trace_debug_levels, dict):
+            if len(create_config_files.integtest_params.trace_debug_levels) > 0:
 
-        # check if TRACE is already enabled in the OKS configuration
-        # (we trust the logic above to copy a user-environment TRACE_FILE into the OKS config)
-        trace_file_value = get_session_env_var(str(create_config_files.dunedaq_config_file),
-                                               create_config_files.integtest_params.config_session_name,
-                                               "TRACE_FILE", quiet=True)
+                # check if TRACE is already enabled in the OKS configuration
+                # (we trust the logic above to copy a user-environment TRACE_FILE into the OKS config)
+                trace_file_value = get_session_env_var(str(create_config_files.dunedaq_config_file),
+                                                       create_config_files.integtest_params.config_session_name,
+                                                       "TRACE_FILE", quiet=True)
 
-        # if not, then enable it by creating a temporary TRACE_FILE
-        if trace_file_value is None:
-            trace_file_value = str(create_config_files.dunedaq_config_dir) + "/integtest_dunedaq.trace"
-            set_session_env_var(str(create_config_files.dunedaq_config_file),
-                                create_config_files.integtest_params.config_session_name,
-                                "TRACE_FILE", trace_file_value, overwrite=True)
+                # if not, then enable it by creating a temporary TRACE_FILE
+                if trace_file_value is None:
+                    trace_file_value = str(create_config_files.dunedaq_config_dir) + "/integtest_dunedaq.trace"
+                    set_session_env_var(str(create_config_files.dunedaq_config_file),
+                                        create_config_files.integtest_params.config_session_name,
+                                        "TRACE_FILE", trace_file_value, overwrite=True)
 
-        # set the env var in the environment of this process
-        os.environ["TRACE_FILE"] = trace_file_value
+                # set the env var in the environment of this process
+                os.environ["TRACE_FILE"] = trace_file_value
 
-        # fetch information from TRACE that we'll need in the next step
-        tlvls_result = subprocess.run(["trace_cntl", "tids"], capture_output=True, text=True, check=True)
-        tlvls_output = tlvls_result.stdout  # the full listing of the current level settings
+                # fetch information from TRACE that we'll need in the next step
+                tlvls_result = subprocess.run(["trace_cntl", "tids"], capture_output=True, text=True, check=True)
+                tlvls_output = tlvls_result.stdout  # the full listing of the current level settings
 
-        # set the requested debug levels, and
-        # build up the list of commands that we'll use to restore the original TRACE settings
-        for trace_type in create_config_files.integtest_params.trace_debug_levels.keys(): # fast or slow
-            requested_levels = create_config_files.integtest_params.trace_debug_levels[trace_type]
-            if type(requested_levels) == dict:
-                lc_trace_type = trace_type.lower()
-                for key, dict_value in requested_levels.items():
-                    fast_mask = "0x1ff"
-                    slow_mask = "0xff"
-                    for text_line in tlvls_output.splitlines():
-                        tokens = text_line.split()
-                        if key == tokens[1]:
-                            fast_mask = tokens[2]
-                            slow_mask = tokens[3]
-                            break
+                # set the requested debug levels, and
+                # build up the list of commands that we'll use to restore the original TRACE settings
+                for trace_type in create_config_files.integtest_params.trace_debug_levels.keys(): # e.g. fast, slow
+                    trace_names_and_levels = create_config_files.integtest_params.trace_debug_levels[trace_type]
+                    if type(trace_names_and_levels) == dict:
+                        lc_trace_type = trace_type.lower()
+                        for trace_name, trace_levels in trace_names_and_levels.items():
+                            # look up the existing masks for the requested trace_name
+                            fast_mask = "0x1ff"
+                            slow_mask = "0xff"
+                            for text_line in tlvls_output.splitlines():
+                                tokens = text_line.split()
+                                if trace_name == tokens[1]:
+                                    fast_mask = tokens[2]
+                                    slow_mask = tokens[3]
+                                    break
 
-                    if isinstance(dict_value, list):
-                        values = dict_value
-                    else:
-                        values = [dict_value]
-                    for value in values:
-                        mask_result = subprocess.run(["bitN_to_mask", f"DEBUG+{value}"], capture_output=True,
-                                                     text=True, check=True)
-                        enable_mask = mask_result.stdout
-                        if "fast" in lc_trace_type:
-                            subprocess.run(["trace_cntl", "-n", key, "lvlset", str(enable_mask), "0", "0"], check=True)
-                        if "slow" in lc_trace_type:
-                            subprocess.run(["trace_cntl", "-n", key, "lvlset", "0", str(enable_mask), "0"], check=True)
+                            # handle a single level or a list of levels by converting
+                            # single values to a 1-element list
+                            level_list = []
+                            if isinstance(trace_levels, list):
+                                level_list = trace_levels
+                            elif isinstance(trace_levels, int):
+                                level_list = [trace_levels]
+                            else:
+                                print(f"\n\N{LARGE YELLOW CIRCLE} Warning: unexpected 'trace_debug_level' integtest configuration parameter value: '{trace_levels}'.")
+                                print(f"\N{LARGE YELLOW CIRCLE} The type of this value is '{type(trace_levels)}', but an integer value is expected.")
+                                print(f"\N{LARGE YELLOW CIRCLE} No TRACE level(s) will be set based on this value.")
+                                print("")
 
-                    if "fast" in lc_trace_type:
-                        subprocess.run(["trace_cntl", "modeM", "1"], check=True)
-                        restore_trace_settings.append(["trace_cntl", "-n", key, "lvlmskM", fast_mask])
-                    if "slow" in lc_trace_type:
-                        subprocess.run(["trace_cntl", "modeS", "1"], check=True)
-                        restore_trace_settings.append(["trace_cntl", "-n", key, "lvlmskS", slow_mask])
-            else:
-                pass  # need warning message
+                            # loop over the one or more requested trace levels
+                            for level in level_list:
+                                if not isinstance(level, int):
+                                    print(f"\n\N{LARGE YELLOW CIRCLE} Warning: unexpected 'trace_debug_level' integtest configuration parameter value: '{level}'.")
+                                    print(f"\N{LARGE YELLOW CIRCLE} The type of this value is '{type(level)}', but an integer value is expected.")
+                                    print(f"\N{LARGE YELLOW CIRCLE} No TRACE level(s) will be set based on this value.")
+                                    print("")
+                                    continue
+
+                                mask_result = subprocess.run(["bitN_to_mask", f"DEBUG+{level}"], capture_output=True,
+                                                             text=True, check=True)
+                                enable_mask = mask_result.stdout
+                                if "fast" in lc_trace_type:
+                                    subprocess.run(["trace_cntl", "-n", trace_name, "lvlset", str(enable_mask), "0", "0"], check=True)
+                                if "slow" in lc_trace_type:
+                                    subprocess.run(["trace_cntl", "-n", trace_name, "lvlset", "0", str(enable_mask), "0"], check=True)
+
+                            # execute beneficial commands, depending on the trace type, and
+                            # save the current masks for later use
+                            if "fast" in lc_trace_type:
+                                subprocess.run(["trace_cntl", "modeM", "1"], check=True)
+                                restore_trace_settings.append(["trace_cntl", "-n", trace_name, "lvlmskM", fast_mask])
+                            elif "slow" in lc_trace_type:
+                                subprocess.run(["trace_cntl", "modeS", "1"], check=True)
+                                restore_trace_settings.append(["trace_cntl", "-n", trace_name, "lvlmskS", slow_mask])
+                            else:
+                                print(f"\n\N{LARGE YELLOW CIRCLE} Warning: unexpected 'trace_debug_level' integtest configuration parameter keyword: '{trace_type}'.")
+                                print(f"\N{LARGE YELLOW CIRCLE} No TRACE level(s) will be set based on this keyword.")
+                                print("")
+
+                    else:  # the 'value' for one of the keys (trace_types) is not a dictionary
+                        print(f"\n\N{LARGE YELLOW CIRCLE} Warning: unable to parse the 'trace_debug_level' integtest configuration parameter value")
+                        print(f"\N{LARGE YELLOW CIRCLE} associated with the '{trace_type}' keyword. Value '{trace_names_and_levels}' does not appear to be a dictionary.")
+                        print(f"\N{LARGE YELLOW CIRCLE} No TRACE level(s) will be set based on this value.")
+                        print("")
+
+        else:  # the "trace_debug_levels" parameter is not a dictionary
+            print(f"\n\N{LARGE YELLOW CIRCLE} Warning: found an unexpected data type for the 'trace_debug_level'")
+            print(f"\N{LARGE YELLOW CIRCLE} integtest configuration parameter: {type(create_config_files.integtest_params.trace_debug_levels)}.")
+            print(f"\N{LARGE YELLOW CIRCLE} No integtest-specific TRACE levels will be used for this test.")
+            print("")
 
     # pause here to let the DAQ system and pytest tests run
     yield
