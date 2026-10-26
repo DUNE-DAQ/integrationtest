@@ -5,7 +5,6 @@ from unittest.mock import MagicMock
 import daqdataformats
 import trgdataformats
 from daqdataformats import FragmentStatusBits
-from hdf5libs import HDF5RawDataFile
 
 def get_TC_types(h5_file, record_id) -> list:
     type_list = []
@@ -219,11 +218,11 @@ def get_TR_trigger_types(h5_file):
     """
     Extracts all unique TR trigger types from a given HDF5 raw data file.
     Parameters:
-        h5_file: An instance of HDF5RawDataFile.
+        h5_file: A raw data file opened with rawdatafilelibs.open().
     Returns:
         A set of integers representing the unique trigger types found in the file.
     """
-    ids = h5_file.get_all_trigger_record_ids()
+    ids = h5_file.get_all_record_ids()
     unique_trigger_types = set()
     for iid in ids:
         tr = h5_file.get_trigger_record(iid)
@@ -367,7 +366,7 @@ def get_TR_trigger_types_all_tests():
     h5_file = MagicMock()
     
     # Return fake record IDs, e.g., [1, 2, 3]
-    h5_file.get_all_trigger_record_ids.return_value = [1, 2, 3]
+    h5_file.get_all_record_ids.return_value = [1, 2, 3]
     
     # For each record id, mock get_trigger_record to return a mock record
     def get_trigger_record_side_effect(iid):

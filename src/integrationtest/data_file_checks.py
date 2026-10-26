@@ -2,7 +2,7 @@ import datetime
 import h5py
 import os.path
 import re
-from hdf5libs import HDF5RawDataFile
+import rawdatafilelibs
 from integrationtest.data_file_check_utilities import (
     get_TC_types,
     get_trigger_type_string,
@@ -62,7 +62,7 @@ def sanity_check(datafile):
 
     # check that the trigger_type in the TriggerRecordHeader matches one of the
     # TriggerCandidates in the TC fragment
-    h5_file = HDF5RawDataFile(datafile.name)
+    h5_file = rawdatafilelibs.open(datafile.name)
     records = h5_file.get_all_record_ids()
     for rec in records:
         trigger_type_string = get_trigger_type_string(h5_file, rec)
@@ -191,7 +191,7 @@ def check_fragment_count(datafile, params):
 
     "Checking that there are {params['expected_fragment_count']} {params['fragment_type_description']} fragments in each record in the file"
     passed=True
-    h5_file = HDF5RawDataFile(datafile.name)
+    h5_file = rawdatafilelibs.open(datafile.name)
     records = h5_file.get_all_record_ids()
     for rec in records:
         trigger_type_string = get_trigger_type_string(h5_file, rec)
@@ -206,7 +206,7 @@ def check_fragment_count(datafile, params):
         if subdet_string == "":
             src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
         else:
-            src_ids = h5_file.get_source_ids_for_fragtype_and_subdetector(rec, params['fragment_type'], subdet_string)
+            src_ids = set(h5_file[rec].source_ids(fragment_type=params['fragment_type'], subdetector=subdet_string))
         fragment_count=len(src_ids)
         if (debug_mask & 0x2) != 0:
             print(f'  DataFileChecks Debug: fragment count is {fragment_count}')
@@ -249,7 +249,7 @@ def check_fragment_sizes(datafile, params):
 
     "Checking that every {params['fragment_type_description']} fragment size is within its allowed range"
     passed=True
-    h5_file = HDF5RawDataFile(datafile.name)
+    h5_file = rawdatafilelibs.open(datafile.name)
     records = h5_file.get_all_record_ids()
     for rec in records:
         trigger_type_string = get_trigger_type_string(h5_file, rec)
@@ -264,7 +264,7 @@ def check_fragment_sizes(datafile, params):
         if subdet_string == "":
             src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
         else:
-            src_ids = h5_file.get_source_ids_for_fragtype_and_subdetector(rec, params['fragment_type'], subdet_string)
+            src_ids = set(h5_file[rec].source_ids(fragment_type=params['fragment_type'], subdetector=subdet_string))
         for src_id in src_ids:
             frag=h5_file.get_frag(rec,src_id);
             size=frag.get_size()
@@ -303,7 +303,7 @@ def check_fragment_error_flags(datafile, params):
 
     "Checking that every {params['fragment_type_description']} fragment size is within its allowed range"
     passed=True
-    h5_file = HDF5RawDataFile(datafile.name)
+    h5_file = rawdatafilelibs.open(datafile.name)
     records = h5_file.get_all_record_ids()
     for rec in records:
         trigger_type_string = get_trigger_type_string(h5_file, rec)
@@ -316,7 +316,7 @@ def check_fragment_error_flags(datafile, params):
         if subdet_string == "":
             src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
         else:
-            src_ids = h5_file.get_source_ids_for_fragtype_and_subdetector(rec, params['fragment_type'], subdet_string)
+            src_ids = set(h5_file[rec].source_ids(fragment_type=params['fragment_type'], subdetector=subdet_string))
         for src_id in src_ids:
             frag=h5_file.get_frag(rec,src_id);
             status_bits=frag.get_status_bits()
@@ -346,7 +346,7 @@ def check_n_unique_sids(datafile, expected_sids_tp, expected_sids_ta, expected_s
         bool: True if all expected Source ID counts match, False otherwise.
     """
     passed=True
-    h5_file = HDF5RawDataFile(datafile.name)
+    h5_file = rawdatafilelibs.open(datafile.name)
     records = h5_file.get_all_record_ids()
     all_sids_tps = set()
     all_sids_tas = set()
@@ -378,7 +378,7 @@ def check_tr_trigger_types(datafile, expected_tr_types_list):
     Returns:
         bool: True if TC types match, False otherwise
     """
-    h5_file = HDF5RawDataFile(datafile.name)
+    h5_file = rawdatafilelibs.open(datafile.name)
     expected_tc_bits = convert_TR_strings_to_types(expected_tr_types_list)
     extracted_tr_types = get_TR_trigger_types(h5_file)
     unpacked_tr_types = unpack_TR_trigger_types(extracted_tr_types)
@@ -405,7 +405,7 @@ def check_tr_type_multiplicity(datafile, multi_required):
     Returns:
         bool: True if multiplicity matches expectation, False otherwise
     """
-    h5_file = HDF5RawDataFile(datafile.name)
+    h5_file = rawdatafilelibs.open(datafile.name)
     extracted_tr_types = get_TR_trigger_types(h5_file)
     is_multi = check_multi_TR_type(extracted_tr_types)
     #print("TR TYPES MULTI CHECK!")
