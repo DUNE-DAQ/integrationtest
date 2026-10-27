@@ -695,6 +695,13 @@ def run_dunerc(request, create_config_files, process_manager_type, trace_debug_s
                 if result.returncode == 0:
                     app.startup_strings[1:1] = create_config_files.integtest_params.dunerc_cmd_args
 
+        # replace placeholder strings in commands
+        for cmd_set in dsi.commands:
+            for index, value in enumerate(cmd_set.command_list):
+                cmd_set.command_list[index] = \
+                    cmd_set.command_list[index].replace("<config_data_file>",
+                                                        str(create_config_files.dunedaq_config_file))
+
         # add an exit command to the end of the command list, for each app, in reverse order
         for app in reversed(dsi.applications):
             tmp_exit_cmd = copy.deepcopy(exit_cmd)
