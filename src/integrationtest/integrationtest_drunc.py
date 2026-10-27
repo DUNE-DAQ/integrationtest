@@ -660,24 +660,28 @@ def run_dunerc(request, create_config_files, process_manager_type, trace_debug_s
     if verbosity_level < IntegtestVerbosityLevels.full_output:
         sys.stdout = original_stdout
 
+    # local function to provide appropriate contents for placeholder strings
+    def replace_placeholder_strings(original_string: str, pm_type: str,
+                                    config_result: CreateConfigResult) -> str:
+        work_string = original_string
+        work_string = work_string.replace("<proc_mgr_choice>", pm_type)
+        work_string = work_string.replace("<config_data_file>",
+                                          str(config_result.dunedaq_config_file))
+        work_string = work_string.replace("<config_session_name>",
+                                          str(config_result.integtest_params.config_session_name))
+        work_string = work_string.replace("<daq_session_name>",
+                                          str(config_result.integtest_params.daq_session_name))
+        return work_string
+
     exit_cmd = DAQCommandSet("drunc", [ "exit" ], ProcessExitWaitParameters())
     if user_supplied_apps:
         dsi = copy.deepcopy(run_control_commands)
         for app in dsi.applications:
             # replace placeholders in the command startup strings
             for idx in range(len(app.startup_strings)):
-                if app.startup_strings[idx] == "<proc_mgr_choice>":
-                    app.startup_strings[idx] = str(process_manager_type)
-                    continue
-                if app.startup_strings[idx] == "<config_data_file>":
-                    app.startup_strings[idx] = str(create_config_files.dunedaq_config_file)
-                    continue
-                if app.startup_strings[idx] == "<config_session_name>":
-                    app.startup_strings[idx] = str(create_config_files.integtest_params.config_session_name)
-                    continue
-                if app.startup_strings[idx] == "<daq_session_name>":
-                    app.startup_strings[idx] = str(create_config_files.integtest_params.daq_session_name)
-                    continue
+                app.startup_strings[idx] = replace_placeholder_strings(app.startup_strings[idx],
+                                                                       str(process_manager_type),
+                                                                       create_config_files)
 
             # include requested options in the startup strings for the apps that support them
             # (This relies on the apps failing if we pass them unsupported options and not failing
@@ -694,13 +698,6 @@ def run_dunerc(request, create_config_files, process_manager_type, trace_debug_s
                 result = subprocess.run(help_cmds, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 if result.returncode == 0:
                     app.startup_strings[1:1] = create_config_files.integtest_params.dunerc_cmd_args
-
-        # replace placeholder strings in commands
-        for cmd_set in dsi.commands:
-            for index, value in enumerate(cmd_set.command_list):
-                cmd_set.command_list[index] = \
-                    cmd_set.command_list[index].replace("<config_data_file>",
-                                                        str(create_config_files.dunedaq_config_file))
 
         # add an exit command to the end of the command list, for each app, in reverse order
         for app in reversed(dsi.applications):
@@ -722,6 +719,14 @@ def run_dunerc(request, create_config_files, process_manager_type, trace_debug_s
         app_list = [ dsapp ]
         cmd_set_list = [ requested_cmds, exit_cmd ]
         dsi = DAQSessionIngredients(app_list, cmd_set_list)
+
+    # replace placeholder strings in commands
+    if dsi is not None:
+        for cmd_set in dsi.commands:
+            for index, value in enumerate(cmd_set.command_list):
+                cmd_set.command_list[index] = replace_placeholder_strings(cmd_set.command_list[index],
+                                                                          str(process_manager_type),
+                                                                          create_config_files)
 
     result = RunResult()
     time_before = time.time()
