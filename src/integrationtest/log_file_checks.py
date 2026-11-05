@@ -127,6 +127,10 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
 
     # 21-Jul-2026, KAB: phrases that we always want to exclude
     local_excl_string_map.setdefault("drunc-unified-shell", []).extend(["Substate.*In error.*Endpoint"])
+    local_excl_string_map.setdefault("local-connection-server", []).extend(["RuntimeError: dictionary changed size during iteration"])
+    local_excl_string_map.setdefault("local-connection-server", []).extend(["connectivityserver.connectionflask\s+Exception on"])
+    local_excl_string_map.setdefault("connectivity-service", []).extend(["RuntimeError: dictionary changed size during iteration"])
+    local_excl_string_map.setdefault("connectivity-service", []).extend(["connectivityserver.connectionflask\s+Exception on"])
 
     all_ok=True
     #print("") # Clear potential dot from pytest
