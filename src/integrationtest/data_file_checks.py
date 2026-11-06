@@ -203,10 +203,8 @@ def check_fragment_count(datafile, params):
             min_count_list.append(fragment_count_limits[0])
         if fragment_count_limits[1] not in max_count_list:
             max_count_list.append(fragment_count_limits[1])
-        if subdet_string == "":
-            src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
-        else:
-            src_ids = set(h5_file[rec].source_ids(fragment_type=params['fragment_type'], subdetector=subdet_string))
+        src_ids = set(h5_file[rec].source_ids(fragment_type=params['fragment_type'],
+                                              subdetector=subdet_string or None))
         fragment_count=len(src_ids)
         if (debug_mask & 0x2) != 0:
             print(f'  DataFileChecks Debug: fragment count is {fragment_count}')
@@ -261,10 +259,8 @@ def check_fragment_sizes(datafile, params):
             min_size_list.append(size_limits[0])
         if size_limits[1] not in max_size_list:
             max_size_list.append(size_limits[1])
-        if subdet_string == "":
-            src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
-        else:
-            src_ids = set(h5_file[rec].source_ids(fragment_type=params['fragment_type'], subdetector=subdet_string))
+        src_ids = set(h5_file[rec].source_ids(fragment_type=params['fragment_type'],
+                                              subdetector=subdet_string or None))
         for src_id in src_ids:
             frag=h5_file.get_frag(rec,src_id);
             size=frag.get_size()
@@ -313,10 +309,8 @@ def check_fragment_error_flags(datafile, params):
             print(f'DataFileChecks Debug: the fragment status bitmask is {hex(status_bitmask)} for TC type {trigger_type_string} and record ordinal strings {rno_strings}')
         if status_bitmask not in error_mask_list:
             error_mask_list.append(status_bitmask)
-        if subdet_string == "":
-            src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
-        else:
-            src_ids = set(h5_file[rec].source_ids(fragment_type=params['fragment_type'], subdetector=subdet_string))
+        src_ids = set(h5_file[rec].source_ids(fragment_type=params['fragment_type'],
+                                              subdetector=subdet_string or None))
         for src_id in src_ids:
             frag=h5_file.get_frag(rec,src_id);
             status_bits=frag.get_status_bits()
