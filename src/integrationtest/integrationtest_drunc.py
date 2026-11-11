@@ -60,9 +60,10 @@ def find_and_signal_process(application_name, label, wait_time=0, sig=signal.SIG
         if wait_time > 0:
             time.sleep(wait_time)
 
-        # Run ps aux to get process list
+        # Run ps aux to get process list. "ww" stops ps from cutting lines at the terminal width,
+        # which would hide the "-n <label>" part of the command line
         result = subprocess.run(
-            ["ps", "aux"],
+            ["ps", "auxww"],
             capture_output=True,
             text=True,
             check=True
